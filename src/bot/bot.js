@@ -202,6 +202,14 @@ async function restoreSnapshot() {
 
 async function startBot() {
   return new Promise((resolve, reject) => {
+    client.on('error', (err) => {
+      console.error('Discord client error:', err.message);
+    });
+
+    client.on('shardError', (err) => {
+      console.error('Discord shard error:', err.message);
+    });
+
     client.once('ready', async () => {
       console.log('NEXA connected to Discord');
 
@@ -298,6 +306,7 @@ async function startBot() {
       }
     });
 
+    console.log('Attempting Discord login...');
     client.login(config.token).catch((err) => {
       console.error('Failed to login to Discord:', err.message);
       reject(err);
