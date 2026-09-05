@@ -1,0 +1,278 @@
+
+> nexa_nodejs@1.0.0 test
+> node --test
+
+Register result: {
+  "success": true,
+  "creator": {
+    "id": 1,
+    "guildId": "g1",
+    "userId": "u1",
+    "displayName": "TestUser",
+    "bio": null,
+    "status": "active",
+    "createdAt": "2026-09-05T22:52:31.645Z",
+    "updatedAt": "2026-09-05T22:52:31.645Z"
+  },
+  "message": "You are now an active creator!"
+}
+Creator profile: { id: 1, status: 'active' }
+Is creator active: true
+Creator from content repo db: { id: 1 }
+Content result: {
+  "success": true,
+  "content": {
+    "id": 1,
+    "guildId": "g1",
+    "creatorId": 1,
+    "title": "Test Content",
+    "description": "Description",
+    "contentType": "text",
+    "status": "created_at",
+    "createdAt": "2026-09-05T22:52:31.662Z",
+    "updatedAt": "2026-09-05T22:52:31.662Z",
+    "publishedAt": null
+  },
+  "message": "Content created as draft."
+}
+Γ£ö debug_test.js (759.9571ms)
+Γû╢ Achievements Engine
+  Γû╢ Seed
+    Γ£ö creates default achievements (64.5613ms)
+    Γ£ö is idempotent (92.2607ms)
+    Γ£ö has correct default achievements (70.35ms)
+    Γ£ö first_steps has correct metadata (62.9332ms)
+    Γ£ö social_presence has correct metadata (65.5375ms)
+    Γ£ö regular has correct metadata (212.1231ms)
+  Γ£ö Seed (571.0557ms)
+  Γû╢ Assignment
+    Γ£ö assigns achievements to member (125.4606ms)
+    Γ£ö is idempotent for member (110.683ms)
+  Γ£ö Assignment (237.7635ms)
+  Γû╢ Progress
+    Γ£ö first message completes first_steps achievement (97.8581ms)
+    Γ£ö advances to target and stops (79.8206ms)
+    Γ£ö does not progress after completion (73.3624ms)
+  Γ£ö Progress (251.714ms)
+  Γû╢ Rewards
+    Γ£ö awards XP on completion (61.0625ms)
+    Γ£ö awards XP exactly once (72.0813ms)
+  Γ£ö Rewards (133.5101ms)
+  Γû╢ Isolation
+    Γ£ö guilds and users are isolated (72.2399ms)
+  Γ£ö Isolation (72.5117ms)
+  Γû╢ Persistence
+    Γ£ö survives reopen (208.7278ms)
+  Γ£ö Persistence (209.1358ms)
+  Γû╢ Concurrency
+    Γ£ö handles concurrent activity without duplicate rewards (154.5468ms)
+  Γ£ö Concurrency (154.7889ms)
+  Γû╢ Model
+    Γ£ö formats progress text correctly (60.8131ms)
+  Γ£ö Model (61.0661ms)
+  Γû╢ Service Integration
+    Γ£ö hasCollectible works (80.2606ms)
+  Γ£ö Service Integration (80.5221ms)
+Γ£ö Achievements Engine (1774.7415ms)
+Γû╢ Collectibles Engine
+  Γû╢ Default Collectibles
+    Γ£ö has correct default collectibles (101.4303ms)
+    Γ£ö moon_shard has correct metadata (74.0644ms)
+    Γ£ö ember_core has correct metadata (63.0659ms)
+    Γ£ö static_relic has correct metadata (144.511ms)
+  Γ£ö Default Collectibles (388.8873ms)
+  Γû╢ Seeding
+    Γ£ö creates default collectibles (234.6389ms)
+    Γ£ö seeding is idempotent (71.8587ms)
+    Γ£ö duplicate key prevention (74.2332ms)
+  Γ£ö Seeding (381.5955ms)
+  Γû╢ Ownership
+    Γ£ö can grant collectible (75.212ms)
+    Γ£ö duplicate grant does not duplicate row (70.9364ms)
+    Γ£ö hasCollectible works (73.5473ms)
+    Γ£ö getCollection works (69.5412ms)
+  Γ£ö Ownership (290.0461ms)
+  Γû╢ Isolation
+    Γ£ö guild isolation (64.7508ms)
+    Γ£ö user isolation (62.3844ms)
+  Γ£ö Isolation (127.4756ms)
+  Γû╢ Persistence
+    Γ£ö ownership survives reopen (154.3159ms)
+  Γ£ö Persistence (154.5911ms)
+  Γû╢ Concurrency
+    Γ£ö handles concurrent grant without duplicate (113.6091ms)
+  Γ£ö Concurrency (113.8656ms)
+  Γû╢ Model Helpers
+    Γ£ö rarityLabel formats correctly (82.6991ms)
+    Γ£ö iconForRarity returns fallback icons (70.535ms)
+    Γ£ö memberCollectibleDisplayIcon uses icon or fallback (76.0295ms)
+  Γ£ö Model Helpers (229.8307ms)
+  Γû╢ Quest Integration
+    Γ£ö first_steps completion grants XP + Moon Shard (112.8342ms)
+    Γ£ö duplicate completion does not duplicate collectible (64.0359ms)
+  Γ£ö Quest Integration (177.303ms)
+Γ£ö Collectibles Engine (1866.2217ms)
+Γû╢ commands
+  Γ£ö should have ping command (3061.756ms)
+  Γ£ö should have help command (3.2277ms)
+  Γ£ö should have commands registry (76.2282ms)
+  Γ£ö profile command should have import compatibility (0.8692ms)
+Γ£ö commands (3163.1535ms)
+Γû╢ config
+  Γ£ö should have .env.example with required variables (7.1115ms)
+  Γ£ö should load config when env vars are set (35.0202ms)
+  Γ£ö should not expose token in config object structure (2.594ms)
+  Γ£ö should treat guildId as optional when not set (1.877ms)
+Γ£ö config (49.9523ms)
+Γû╢ Creator Foundation
+  Γû╢ Database Schema
+    Γ£ö creator table exists (73.9922ms)
+    Γ£ö unique (guild_id, user_id) constraint (62.3934ms)
+    Γ£ö valid statuses: pending, active, suspended (59.5691ms)
+    Γ£ö schema works with shared in-memory database (10.1752ms)
+  Γ£ö Database Schema (208.753ms)
+  Γû╢ Repository
+    Γ£ö create creator (19.68ms)
+    Γ£ö retrieve creator (55.299ms)
+    Γ£ö retrieve by guild/user (getCreatorByUser) (9.0942ms)
+    Γ£ö duplicate prevention (10.6639ms)
+    Γ£ö update status (55.8824ms)
+    Γ£ö guild isolation (13.049ms)
+    Γ£ö missing creator handling (15.9352ms)
+  Γ£ö Repository (180.9366ms)
+  Γû╢ Service
+    Γ£ö eligible user can register (43.4561ms)
+    Γ£ö registration creates active creator (9.7711ms)
+    Γ£ö duplicate registration is safe (14.1462ms)
+    Γ£ö suspended creator is not active (26.8994ms)
+    Γ£ö isCreator() behaves correctly - active (9.7261ms)
+    Γ£ö isCreator() behaves correctly - suspended (12.3466ms)
+    Γ£ö isCreator() behaves correctly - non-existent user (29.2895ms)
+  Γ£ö Service (147.4785ms)
+  Γû╢ Commands
+    Γ£ö /creator register command loads (2243.9315ms)
+    Γ£ö /creator status command loads (45.9243ms)
+  Γ£ö Commands (2291.1171ms)
+Γ£ö Creator Foundation (2830.1796ms)
+Γ£ö Creator Earnings (0.3464ms)
+Γû╢ Economy Engine
+  Γû╢ Seed
+    Γ£ö has correct currency name (70.1694ms)
+    Γ£ö has correct currency symbol (62.1917ms)
+    Γ£ö has correct starting balance (58.4003ms)
+  Γ£ö Seed (193.2318ms)
+  Γû╢ Wallet Creation
+    Γ£ö creates wallet with starting balance (64.2514ms)
+    Γ£ö is idempotent (59.8444ms)
+    Γ£ö returns null for non-existent wallet (65.9496ms)
+  Γ£ö Wallet Creation (190.8466ms)
+  Γû╢ Guild Isolation
+    Γ£ö wallets are isolated per guild (63.554ms)
+  Γ£ö Guild Isolation (63.9941ms)
+  Γû╢ User Isolation
+    Γ£ö wallets are isolated per user (62.7158ms)
+  Γ£ö User Isolation (64.8427ms)
+  Γû╢ Balance Operations
+    Γ£ö adds currency correctly (61.6702ms)
+    Γ£ö adds multiple times correctly (81.5163ms)
+    Γ£ö spends currency correctly (982.4666ms)
+    Γ£ö rejects negative amounts (885.0594ms)
+    Γ£ö rejects zero amounts (1618.0756ms)
+    Γ£ö rejects insufficient balance (991.2582ms)
+    Γ£ö rejects floating point amounts (1874.3785ms)
+    Γ£ö allows large integer amounts (1203.0565ms)
+  Γ£ö Balance Operations (7698.725ms)
+  Γû╢ Transactions
+    Γ£ö records earn transactions (652.0502ms)
+    Γ£ö records spend transactions (1541.493ms)
+    Γ£ö supports reference IDs (613.9768ms)
+    Γ£ö returns empty list for new wallet (432.2144ms)
+  Γ£ö Transactions (3240.5037ms)
+  Γû╢ Persistence
+    Γ£ö survives reopen (628.4068ms)
+  Γ£ö Persistence (628.6389ms)
+  Γû╢ Concurrency
+    Γ£ö handles concurrent adds without lost updates (588.9479ms)
+    Γ£ö handles concurrent spends without negative balance (507.8376ms)
+  Γ£ö Concurrency (1097.1633ms)
+Γ£ö Economy Engine (13180.3632ms)
+Γû╢ XP System
+  Γ£ö should have correct XP threshold for level 1 (0 XP) (64.5264ms)
+  Γ£ö should have correct XP threshold for level 2 (100 XP) (17.7575ms)
+  Γ£ö should have correct XP threshold for level 3 (250 XP) (0.4424ms)
+  Γ£ö should have correct XP threshold for level 4 (450 XP) (0.4941ms)
+  Γ£ö should have correct XP threshold for level 5 (700 XP) (3.4309ms)
+Γ£ö XP System (90.1568ms)
+Γû╢ Level Calculation
+  Γ£ö should return level 1 for 0 XP (1.0471ms)
+  Γ£ö should return level 1 for negative XP (0.5399ms)
+  Γ£ö should return level 1 for XP below 100 (0.6431ms)
+  Γ£ö should return level 2 for XP exactly 100 (0.6771ms)
+  Γ£ö should return level 2 for XP between 101 and 250 (0.5845ms)
+  Γ£ö should return level 3 for XP exactly 250 (0.2813ms)
+  Γ£ö should return level 3 for XP between 251 and 450 (0.2819ms)
+  Γ£ö should return level 4 for XP exactly 450 (0.2137ms)
+  Γ£ö should return level 4 for XP between 451 and 700 (0.2926ms)
+  Γ£ö should return level 5 for XP exactly 700 (0.4413ms)
+Γ£ö Level Calculation (6.2845ms)
+Γû╢ Profile Operations
+  Γ£ö should create profile with default values (1285.2018ms)
+  Γ£ö should return null for non-existent profile (742.98ms)
+  Γ£ö should update profile name on re-ensure (863.4351ms)
+Γ£ö Profile Operations (2892.1724ms)
+Γû╢ Message Activity
+  Γ£ö should increment message count on first message with XP reward (820.531ms)
+  Γ£ö should increment message count but not XP during cooldown (578.52ms)
+  Γ£ö should update last active timestamp (1668.6694ms)
+Γ£ö Message Activity (3068.2464ms)
+Γû╢ Leveling
+  Γ£ö should level up correctly on XP addition (640.2329ms)
+Γ£ö Leveling (640.5837ms)
+Γû╢ Identity Service
+  Γ£ö should create profile and return it (723.8261ms)
+  Γ£ö should apply cooldown for rapid messages (404.6164ms)
+  Γ£ö should award XP after cooldown expires (570.4723ms)
+  Γ£ö should track cooldown per user (339.0251ms)
+Γ£ö Identity Service (2038.6848ms)
+Γû╢ Quest Engine
+  Γû╢ Seed
+    Γ£ö creates default quests (1966.91ms)
+    Γ£ö is idempotent (1971.6544ms)
+  Γ£ö Seed (3940.6358ms)
+  Γû╢ Assignment
+    Γ£ö assigns quests to member (1023.036ms)
+    Γ£ö is idempotent for member (1123.7475ms)
+  Γ£ö Assignment (2147.4296ms)
+  Γû╢ Progress
+    Γ£ö first message completes first_steps (704.8485ms)
+    Γ£ö advances to target and stops (1189.7354ms)
+    Γ£ö does not progress after completion (572.1441ms)
+  Γ£ö Progress (2468.7924ms)
+  Γû╢ Rewards
+    Γ£ö awards XP on completion (484.6475ms)
+    Γ£ö awards XP exactly once (309.1982ms)
+  Γ£ö Rewards (794.377ms)
+  Γû╢ Expiration
+    Γ£ö expired quests do not progress (566.6106ms)
+  Γ£ö Expiration (566.8699ms)
+  Γû╢ Isolation
+    Γ£ö guilds and users are isolated (414.5961ms)
+  Γ£ö Isolation (414.852ms)
+  Γû╢ Persistence
+    Γ£ö survives reopen (429.1153ms)
+  Γ£ö Persistence (429.365ms)
+  Γû╢ Concurrency
+    Γ£ö handles concurrent activity without duplicate rewards (249.062ms)
+  Γ£ö Concurrency (249.3123ms)
+  Γû╢ Model
+    Γ£ö formats progress text correctly (677.7925ms)
+  Γ£ö Model (678.62ms)
+Γ£ö Quest Engine (11692.99ms)
+Γä╣ tests 130
+Γä╣ suites 52
+Γä╣ pass 130
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 18304.7233

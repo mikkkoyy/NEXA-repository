@@ -1,0 +1,441 @@
+Γû╢ Creator Foundation
+  Γû╢ Database Schema
+    Γ£ö creator table exists (59.585ms)
+    Γ£ö unique (guild_id, user_id) constraint (58.4ms)
+    Γ£ö valid statuses: pending, active, suspended (56.2074ms)
+    Γ£ö schema works with shared in-memory database (7.1168ms)
+  Γ£ö Database Schema (183.8528ms)
+  Γû╢ Repository
+    Γ£ö create creator (11.4594ms)
+    Γ£ö retrieve creator (7.9424ms)
+    Γ£ö retrieve by guild/user (getCreatorByUser) (10.206ms)
+    Γ£ö duplicate prevention (7.7682ms)
+    Γ£ö update status (9.8952ms)
+    Γ£ö guild isolation (7.625ms)
+    Γ£ö missing creator handling (11.5648ms)
+  Γ£ö Repository (67.8248ms)
+  Γû╢ Service
+    Γ£ö eligible user can register (12.7821ms)
+    Γ£ö registration creates active creator (7.5843ms)
+    Γ£ö duplicate registration is safe (10.5833ms)
+    Γ£ö suspended creator is not active (9.9889ms)
+    Γ£ö isCreator() behaves correctly - active (9.0845ms)
+    Γ£ö isCreator() behaves correctly - suspended (10.3936ms)
+    Γ£ö isCreator() behaves correctly - non-existent user (8.7667ms)
+  Γ£ö Service (70.2565ms)
+  Γû╢ Commands
+    Γ£ö /creator register command loads (1061.1786ms)
+    Γ£ö /creator status command loads (0.3851ms)
+  Γ£ö Commands (1061.7912ms)
+Γ£ö Creator Foundation (1385.0857ms)
+Γû╢ Creator Earnings
+  Γû╢ Database Schema
+    Γ£û creator_earnings table exists (18.2469ms)
+    Γ£û valid statuses (6.5035ms)
+  Γ£û Database Schema (25.128ms)
+  Γû╢ Platform Fee Calculation
+    Γ£û calculates 20% fee correctly (8.7412ms)
+    Γ£û calculates fee on different amounts (7.3119ms)
+    Γ£û never produces negative fee (8.6867ms)
+    Γ£û net amount is gross minus fee (6.2937ms)
+  Γ£û Platform Fee Calculation (31.4827ms)
+  Γû╢ Repository
+    Γ£û create earning (8.5371ms)
+    Γ£û retrieve earning (6.5782ms)
+    Γ£û retrieve earning by purchase (8.574ms)
+    Γ£û list creator earnings (6.7984ms)
+    Γ£û list guild earnings (8.1814ms)
+    Γ£û duplicate prevention via purchase_id (7.1842ms)
+    Γ£û guild isolation (6.4832ms)
+  Γ£û Repository (53.1278ms)
+  Γû╢ Service
+    Γ£û creates earning for valid purchase (9.2606ms)
+    Γ£û idempotent - same purchase returns existing earning (6.3454ms)
+    Γ£û rejects non-creator (8.225ms)
+    Γ£û rejects suspended creator (6.363ms)
+    Γ£û rejects product not owned (8.4394ms)
+    Γ£û rejects unlisted product (6.4979ms)
+    Γ£û rejects missing purchase (7.7995ms)
+    Γ£û rejects unpaid purchase (7.1095ms)
+    Γ£û creator earnings history works (7.1513ms)
+    Γ£û creator cannot access another creator earnings (8.053ms)
+  Γ£û Service (76.4267ms)
+Γ£û Creator Earnings (186.8907ms)
+Γä╣ tests 43
+Γä╣ suites 10
+Γä╣ pass 20
+Γä╣ fail 23
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 1968.7755
+
+Γ£û failing tests:
+
+test at tests\creator.test.js:303:5
+Γ£û creator_earnings table exists (18.2469ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at node:internal/test_runner/test:1867:71 {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:310:5
+Γ£û valid statuses (6.5035ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:317:5
+Γ£û calculates 20% fee correctly (8.7412ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at node:internal/test_runner/test:1867:71 {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:323:5
+Γ£û calculates fee on different amounts (7.3119ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:329:5
+Γ£û never produces negative fee (8.6867ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:334:5
+Γ£û net amount is gross minus fee (6.2937ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:343:5
+Γ£û create earning (8.5371ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at node:internal/test_runner/test:1867:71 {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:352:5
+Γ£û retrieve earning (6.5782ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:359:5
+Γ£û retrieve earning by purchase (8.574ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:365:5
+Γ£û list creator earnings (6.7984ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:374:5
+Γ£û list guild earnings (8.1814ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:381:5
+Γ£û duplicate prevention via purchase_id (7.1842ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:387:5
+Γ£û guild isolation (6.4832ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:398:5
+Γ£û creates earning for valid purchase (9.2606ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at node:internal/test_runner/test:1867:71 {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:414:5
+Γ£û idempotent - same purchase returns existing earning (6.3454ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:428:5
+Γ£û rejects non-creator (8.225ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:434:5
+Γ£û rejects suspended creator (6.363ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:441:5
+Γ£û rejects product not owned (8.4394ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:447:5
+Γ£û rejects unlisted product (6.4979ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:454:5
+Γ£û rejects missing purchase (7.7995ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:460:5
+Γ£û rejects unpaid purchase (7.1095ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:472:5
+Γ£û creator earnings history works (7.1513ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }
+
+test at tests\creator.test.js:490:5
+Γ£û creator cannot access another creator earnings (8.053ms)
+  Error [SqliteError]: no such column: id
+      at Database.prepare (D:\FILES\project\NEXA_nodejs\node_modules\better-sqlite3\lib\methods\wrappers.js:5:21)
+      at PaymentsRepository.ensurePlans (D:\FILES\project\NEXA_nodejs\src\payments\repository.js:47:33)
+      at TestContext.<anonymous> (D:\FILES\project\NEXA_nodejs\tests\creator.test.js:279:18)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1382:25)
+      at TestHook.run (node:internal/test_runner/test:1726:18)
+      at Suite.runHook (node:internal/test_runner/test:1269:20)
+      at Test.run (node:internal/test_runner/test:1342:27)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19) {
+    code: 'SQLITE_ERROR'
+  }

@@ -1,0 +1,23 @@
+{
+  "name": "nexa_nodejs",
+  "version": "1.0.0",
+  "description": "Node.js migration of NEXA Discord bot - 001 Discord Foundation",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "NEXA",
+    "migration"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "discord.js": "^14.15.0",
+    "dotenv": "^16.4.5"
+  }
+}
