@@ -32,4 +32,4 @@ module.exports = {
   currentMood,
   statusText,
   createWorldState
-);
+};
