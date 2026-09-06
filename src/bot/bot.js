@@ -28,6 +28,8 @@ const PaymentsService = require('../payments/service');
 
 let isShuttingDown = false;
 let backupInterval = null;
+let isInitialized = false;
+let connectionBackoffMs = 0;
 
 const database = new Database(':memory:');
 migrate(database);
@@ -49,11 +51,23 @@ client.on('shardError', (err) => {
   console.error('Discord shard error:', err.message);
 });
 
-// Permanent operational visibility: Discord's rate limiter is per-bot-token
-// for authenticated requests (not per-IP), so if the gateway login process
-// ever stalls again, this tells us immediately whether it's because we hit
-// an API rate limit, and on which route.
-client.rest.on(RESTEvents.RateLimited, (info) => {
+client.on('shardDisconnect', (event) => {
+  console.log('Discord shard disconnect:', 'code=' + event.code, 'reason=' + (event.reason || 'none'));
+});
+
+client.on('shardReady', (shardId, resumeAttempts) => {
+  console.log('Discord shard ready:', 'id=' + shardId, 'resumeAttempts=' + resumeAttempts);
+});
+
+client.on('shardResume', (shardId, resumeAttempts) => {
+  console.log('Discord shard resume:', 'id=' + shardId, 'resumeAttempts=' + resumeAttempts);
+});
+
+client.on('invalidated', () => {
+  console.warn('[NEXA] Session invalidated - cannot resume, requires re-identify');
+});
+
+client.on(RESTEvents.RateLimited, (info) => {
   console.warn('[NEXA] Discord API rate limit hit:', JSON.stringify({
     route: info.route,
     method: info.method,
@@ -119,9 +133,11 @@ function setupServices({ profileRepo, questRepo, collectibleRepo, achievementRep
   client.creatorContentService = creatorContentService;
 
   const creatorMarketplaceService = new CreatorMarketplaceService(creatorMarketplaceRepo);
+  client.creatorMarketplaceRepository = creatorMarketplaceRepo;
   client.creatorMarketplaceService = creatorMarketplaceService;
 
   const creatorEarningsService = new CreatorEarningsService(creatorEarningsRepo, paymentsRepo);
+  client.creatorEarningsRepository = creatorEarningsRepo;
   client.creatorEarningsService = creatorEarningsService;
 }
 
@@ -164,16 +180,11 @@ async function doBackup() {
 }
 
 async function startBackupTimer() {
-  try {
-    await doBackup();
-
-    if (backupInterval) {
-      clearInterval(backupInterval);
-    }
-    backupInterval = setInterval(doBackup, 10 * 60 * 1000);
-  } catch (err) {
-    console.error('[Database] Backup timer error:', err.message);
+  if (backupInterval) {
+    clearInterval(backupInterval);
   }
+  await doBackup();
+  backupInterval = setInterval(doBackup, 10 * 60 * 1000);
 }
 
 async function restoreSnapshot() {
@@ -183,7 +194,14 @@ async function restoreSnapshot() {
     return;
   }
 
-  const channel = await client.channels.fetch(backupChannelId);
+  let channel;
+  try {
+    channel = await client.channels.fetch(backupChannelId);
+  } catch (err) {
+    console.log('[Database] Backup channel not found. Starting fresh database.');
+    return;
+  }
+
   if (!channel || channel.type !== 0) {
     console.log('[Database] Backup channel not found. Starting fresh database.');
     return;
@@ -224,129 +242,179 @@ async function restoreSnapshot() {
   }
 }
 
+function initializeApplication() {
+  if (isInitialized) {
+    return;
+  }
+  isInitialized = true;
+
+  console.log('Initializing NEXA application...');
+
+  Promise.resolve().then(async () => {
+    try {
+      await restoreSnapshot();
+    } catch (err) {
+      console.error('[Database] Snapshot restore error:', err.message);
+    }
+
+    try {
+      const repos = setupRepositories();
+      setupServices(repos);
+    } catch (err) {
+      console.error('Failed to setup services:', err.message);
+    }
+
+    try {
+      await registerCommands();
+      console.log('Commands registered');
+    } catch (err) {
+      console.error('Failed to register commands:', err.message);
+    }
+
+    try {
+      await client.user.setPresence({
+        activities: [{ name: config.presence.name, type: config.presence.type }],
+        status: 'online'
+      });
+    } catch (err) {
+      console.error('Failed to set presence:', err.message);
+    }
+
+    try {
+      await startBackupTimer();
+    } catch (err) {
+      console.error('Failed to start backup timer:', err.message);
+    }
+
+    console.log('NEXA ready');
+  }).catch(err => {
+    console.error('Application initialization error:', err.message);
+  });
+}
+
+let loginAttemptId = 0;
+const LOGIN_TIMEOUT_MS = 60000;
+
+async function loginWithRetry() {
+  loginAttemptId++;
+  const attemptId = loginAttemptId;
+  let loginPromise = null;
+  let resolveLogin = null;
+  let rejectLogin = null;
+
+  loginPromise = new Promise((resolve, reject) => {
+    resolveLogin = resolve;
+    rejectLogin = reject;
+  });
+
+  console.log(`Discord login attempt #${attemptId}`);
+
+  const loginTimeout = setTimeout(() => {
+    const currentAttemptId = loginAttemptId;
+    if (attemptId !== currentAttemptId) {
+      return;
+    }
+    console.error('[NEXA] Discord login timed out after 60s (attempt #' + attemptId + ')');
+    console.error('[NEXA] client.ws.status:', client.ws ? client.ws.status : 'no ws');
+    console.error('[NEXA] If this recurs frequently, check for "[NEXA] Discord API rate limit hit" messages above.');
+    
+    if (loginPromise) {
+      clearTimeout(loginTimeout);
+      rejectLogin(new Error('Discor d login timed out on attempt #' + attemptId));
+    }
+    
+    connectionBackoffMs = Math.min(LOGIN_TIMEOUT_MS * 4, 5 * 60 * 1000);
+    console.log('[NEXA] Retrying login in ' + (connectionBackoffMs / 1000) + 's (exponential backoff)');
+    
+    setTimeout(() => {
+      loginWithRetry();
+    }, connectionBackoffMs);
+    
+    connectionBackoffMs = 0;
+  }, LOGIN_TIMEOUT_MS);
+
+  let readyPromise = new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('READY event timeout'));
+    }, LOGIN_TIMEOUT_MS);
+    
+    client.once('ready', () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+  });
+
+  client.once('shardDisconnect', (event) => {
+    console.log('Discord shard disconnect during login:', 'code=' + event.code, 'reason=' + (event.reason || 'none'));
+  });
+
+  try {
+    const loginResult = client.login(config.token);
+    
+    try {
+      await Promise.race([
+        loginResult.then(() => {
+          console.log('Discord login promise resolved');
+        }),
+        readyPromise.catch(err => {
+          console.error('[NEXA] READY event not received:', err.message);
+        })
+      ]);
+    } catch (err) {
+      console.error('[NEXA] Login exception:', err.message);
+    }
+    
+    await readyPromise;
+    
+    clearTimeout(loginTimeout);
+    console.log('NEXA connected to Discord (attempt #' + attemptId + ')');
+    
+    initializeApplication();
+    resolveLogin();
+    
+  } catch (err) {
+    clearTimeout(loginTimeout);
+    console.error('[NEXA] Login error on attempt #' + attemptId + ':', err.message);
+    
+    if (attemptId === loginAttemptId) {
+      connectionBackoffMs = Math.min((connectionBackoffMs || 0) + 1000, 5 * 60 * 1000);
+      console.log('[NEXA] Retrying login in ' + (connectionBackoffMs / 1000) + 's');
+      setTimeout(() => {
+        loginWithRetry();
+      }, connectionBackoffMs);
+      connectionBackoffMs = 0;
+    }
+    
+    rejectLogin(err);
+  }
+}
+
 async function startBot() {
   return new Promise((resolve, reject) => {
-    client.on('shardDisconnect', (event) => {
-      console.log('Discord shard disconnect:', 'code=' + event.code, 'reason=' + (event.reason || 'none'));
-    });
+    console.log('Starting NEXA Discord Gateway connection...');
 
-    const loginTimeout = setTimeout(() => {
-      console.error('Discord login timed out after 60s');
-      console.error('client.ws.status:', client.ws.status);
-      console.error('[NEXA] No READY event and no rejected login promise within 60s. If this recurs, check the logs above for a "[NEXA] Discord API rate limit hit" line (identify/session-start-limit exhaustion, often from repeated rapid restarts) before assuming a network fault — Discord REST/API reachability was already confirmed separately.');
-      client.destroy();
-      reject(new Error('Discord login timed out'));
-    }, 60000);
-
-    client.once('ready', async () => {
-      clearTimeout(loginTimeout);
+    client.once('ready', () => {
       console.log('NEXA connected to Discord');
-
-      try {
-        await restoreSnapshot();
-      } catch (err) {
-        console.error('[Database] Snapshot restore error:', err.message);
-      }
-
-      try {
-        const repos = setupRepositories();
-        setupServices(repos);
-      } catch (err) {
-        console.error('Failed to setup services:', err.message);
-      }
-
-      try {
-        await registerCommands();
-        console.log('Commands registered');
-      } catch (err) {
-        console.error('Failed to register commands:', err.message);
-      }
-
-      try {
-        await client.user.setPresence({
-          activities: [{ name: config.presence.name, type: config.presence.type }],
-          status: 'online'
-        });
-      } catch (err) {
-        console.error('Failed to set presence:', err.message);
-      }
-
-      try {
-        await startBackupTimer();
-      } catch (err) {
-        console.error('Failed to start backup timer:', err.message);
-      }
-
-      resolve();
-      console.log('NEXA ready');
+      initializeApplication();
     });
 
-    client.on('interactionCreate', async (interaction) => {
-      if (!interaction.isChatInputCommand()) return;
-
-      const command = commands.find(cmd => cmd.data.name === interaction.commandName);
-      if (!command) return;
-
-      try {
-        await command.execute(interaction);
-      } catch (err) {
-        console.error(`Error executing ${interaction.commandName}:`, err.message);
-        if (interaction.replied || interaction.deferred) {
-          await interaction.editReply('An error occurred while executing this command.');
-        } else {
-          await interaction.reply('An error occurred while executing this command.');
-        }
-      }
+    client.login(config.token).then(() => {
+      console.log('Discord login initiated');
+    }).catch((err) => {
+      console.error('Discord login error:', err.message);
     });
 
-    client.on('messageCreate', async (message) => {
-      if (message.author.bot) return;
-      if (!message.guild) return;
-
-      try {
-        const identityService = client.identityService;
-        if (identityService) {
-          await identityService.recordMessage(
-            message,
-            message.guild.id,
-            message.author.id,
-            message.author.username,
-            message.member?.nickname || message.author.displayName || message.author.username
-          );
-        }
-      } catch (err) {
-        console.error('Error recording message activity:', err.message);
+    setTimeout(() => {
+      if (!client.isReady()) {
+        console.error('[NEXA] Initial connection timeout after 60s, enabling backoff retry');
+        connectionBackoffMs = 5000;
+        setTimeout(() => {
+          loginWithRetry();
+        }, connectionBackoffMs);
+      } else {
+        resolve();
       }
-
-      try {
-        const questService = client.questService;
-        if (questService) {
-          questService.recordActivity(message.guild.id, message.author.id);
-        }
-      } catch (err) {
-        console.error('Error recording quest activity:', err.message);
-      }
-
-      try {
-        const achievementService = client.achievementService;
-        if (achievementService) {
-          achievementService.recordActivity(message.guild.id, message.author.id);
-        }
-      } catch (err) {
-        console.error('Error recording achievement activity:', err.message);
-      }
-    });
-
-    client.login(config.token)
-      .then(() => {
-        // Login successful, timeout cleared by ready event
-      })
-      .catch((err) => {
-        clearTimeout(loginTimeout);
-        console.error('Discord login error:', err.message);
-        reject(err);
-      });
-
+    }, LOGIN_TIMEOUT_MS);
   });
 }
 
@@ -384,4 +452,5 @@ module.exports = {
   startBot,
   shutdown,
   setupShutdownHandlers,
+  initializeApplication,
 };
