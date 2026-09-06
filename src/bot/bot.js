@@ -221,7 +221,6 @@ async function startBot() {
   return new Promise((resolve, reject) => {
     client.once('ready', async () => {
       console.log('NEXA connected to Discord');
-      resolve();
 
       try {
         await restoreSnapshot();
@@ -248,7 +247,6 @@ async function startBot() {
           activities: [{ name: config.presence.name, type: config.presence.type }],
           status: 'online'
         });
-        console.log('NEXA ready');
       } catch (err) {
         console.error('Failed to set presence:', err.message);
       }
@@ -258,6 +256,9 @@ async function startBot() {
       } catch (err) {
         console.error('Failed to start backup timer:', err.message);
       }
+
+      resolve();
+      console.log('NEXA ready');
     });
 
     client.on('interactionCreate', async (interaction) => {
