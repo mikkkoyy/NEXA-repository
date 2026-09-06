@@ -216,7 +216,15 @@ async function startBot() {
       console.log('Discord shard disconnect:', 'code=' + event.code, 'reason=' + (event.reason || 'none'));
     });
 
+    const loginTimeout = setTimeout(() => {
+      console.error('Discord login timed out after 20s');
+      console.error('client.ws.status:', client.ws.status);
+      client.destroy();
+      reject(new Error('Discord login timed out'));
+    }, 20000);
+
     client.once('ready', async () => {
+      clearTimeout(loginTimeout);
       console.log('NEXA connected to Discord');
 
       try {
@@ -314,20 +322,16 @@ async function startBot() {
       }
     });
 
-    const loginPromise = client.login(config.token);
+    client.login(config.token)
+      .then(() => {
+        // Login successful, timeout cleared by ready event
+      })
+      .catch((err) => {
+        clearTimeout(loginTimeout);
+        console.error('Discord login error:', err.message);
+        reject(err);
+      });
 
-    const loginTimeout = setTimeout(() => {
-      console.error('Discord login timed out');
-      console.error('client.ws.status:', client.ws.status);
-      reject(new Error('Discord login timed out'));
-    }, 20000);
-
-    loginPromise.then(() => {
-      clearTimeout(loginTimeout);
-    }).catch((err) => {
-      clearTimeout(loginTimeout);
-      reject(err);
-    });
   });
 }
 
