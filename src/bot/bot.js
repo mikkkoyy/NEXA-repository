@@ -26,6 +26,13 @@ const EconomyService = require('../economy/service');
 const WorldService = require('../world/service');
 const PaymentsService = require('../payments/service');
 
+let isShuttingDown = false;
+let backupInterval = null;
+
+const database = new Database(':memory:');
+migrate(database);
+
+console.log('Creating Discord client...');
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -33,11 +40,21 @@ const client = new Client({
   ]
 });
 
-let isShuttingDown = false;
-let backupInterval = null;
+console.log('Registering Discord event handlers...');
+client.on('error', (err) => {
+  console.error('Discord client error:', err.message);
+});
 
-const database = new Database(':memory:');
-migrate(database);
+client.on('shardError', (err) => {
+  console.error('Discord shard error:', err.message);
+});
+
+client.on('debug', (info) => {
+  // Filter out sensitive information from debug logs
+  if (typeof info === 'string' && !info.includes('token') && !info.includes('Token')) {
+    console.log('Discord debug:', info);
+  }
+});
 
 function setupRepositories() {
   const profileRepo = new ProfileRepository(database);
@@ -202,14 +219,6 @@ async function restoreSnapshot() {
 
 async function startBot() {
   return new Promise((resolve, reject) => {
-    client.on('error', (err) => {
-      console.error('Discord client error:', err.message);
-    });
-
-    client.on('shardError', (err) => {
-      console.error('Discord shard error:', err.message);
-    });
-
     client.once('ready', async () => {
       console.log('NEXA connected to Discord');
       resolve();
@@ -308,7 +317,9 @@ async function startBot() {
     });
 
     console.log('Attempting Discord login...');
-    client.login(config.token).catch((err) => {
+    client.login(config.token).then(() => {
+      console.log('Discord login promise resolved');
+    }).catch((err) => {
       console.error('Failed to login to Discord:', err.message);
       reject(err);
     });
