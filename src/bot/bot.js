@@ -49,6 +49,14 @@ client.on('shardError', (err) => {
   console.error('Discord shard error:', err.message);
 });
 
+// TEMPORARY DIAGNOSTIC: surfaces discord.js's internal connection-lifecycle
+// logging (fetching gateway info, opening the socket, identify/resume, etc.)
+// so we can see exactly which step it's stuck on instead of just a blank
+// 60-second gap. Safe to remove once the connection issue is resolved.
+client.on('debug', (info) => {
+  console.log('[Discord Debug]', info);
+});
+
 function setupRepositories() {
   const profileRepo = new ProfileRepository(database);
   const questRepo = new QuestRepository(database);
@@ -210,7 +218,45 @@ async function restoreSnapshot() {
   }
 }
 
+// TEMPORARY DIAGNOSTIC: makes a plain HTTPS request to Discord's REST API,
+// completely outside discord.js, with its own short timeout. This tells us
+// within ~15s whether this host can reach Discord at all over HTTPS, instead
+// of waiting the full 60s to find out indirectly. Safe to remove once the
+// connection issue is resolved.
+function checkDiscordReachable() {
+  const https = require('https');
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const req = https.get(
+      'https://discord.com/api/v10/gateway',
+      { timeout: 15000, headers: { 'User-Agent': 'nexa-diagnostic/1.0' } },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          console.log(`[Diagnostic] Discord REST reachable in ${Date.now() - start}ms. Status: ${res.statusCode}`);
+          resolve(true);
+        });
+      }
+    );
+    req.on('timeout', () => {
+      console.error(`[Diagnostic] Discord REST request TIMED OUT after ${Date.now() - start}ms (no response) — this points to a network/firewall problem between this host and Discord, not a code or token issue.`);
+      req.destroy();
+      resolve(false);
+    });
+    req.on('error', (err) => {
+      console.error(`[Diagnostic] Discord REST request ERRORED after ${Date.now() - start}ms:`, err.code || err.message);
+      resolve(false);
+    });
+  });
+}
+
 async function startBot() {
+  console.log('[Diagnostic] config.token present:', typeof config.token === 'string' && config.token.length > 0, '- length:', config.token ? config.token.length : 0);
+
+  const reachable = await checkDiscordReachable();
+  console.log('[Diagnostic] Discord REST reachability check result:', reachable ? 'REACHABLE' : 'UNREACHABLE');
+
   return new Promise((resolve, reject) => {
     client.on('shardDisconnect', (event) => {
       console.log('Discord shard disconnect:', 'code=' + event.code, 'reason=' + (event.reason || 'none'));
