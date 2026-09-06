@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 function loadConfig(env = process.env) {
-  const DISCORD_TOKEN = env.DISCORD_TOKEN;
+  const DISCORD_TOKEN = env.DISCORD_TOKEN?.trim();
   const DISCORD_CLIENT_ID = env.DISCORD_CLIENT_ID;
   const DISCORD_GUILD_ID = env.DISCORD_GUILD_ID;
   const BACKUP_CHANNEL_ID = env.BACKUP_CHANNEL_ID || '';

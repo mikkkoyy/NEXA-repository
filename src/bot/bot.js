@@ -49,13 +49,6 @@ client.on('shardError', (err) => {
   console.error('Discord shard error:', err.message);
 });
 
-client.on('debug', (info) => {
-  // Filter out sensitive information from debug logs
-  if (typeof info === 'string' && !info.includes('token') && !info.includes('Token')) {
-    console.log('Discord debug:', info);
-  }
-});
-
 function setupRepositories() {
   const profileRepo = new ProfileRepository(database);
   const questRepo = new QuestRepository(database);
@@ -219,24 +212,8 @@ async function restoreSnapshot() {
 
 async function startBot() {
   return new Promise((resolve, reject) => {
-    client.on('shardConnecting', () => {
-      console.log('Discord shard connecting...');
-    });
-
     client.on('shardDisconnect', (event) => {
       console.log('Discord shard disconnect:', 'code=' + event.code, 'reason=' + (event.reason || 'none'));
-    });
-
-    client.on('shardReconnecting', () => {
-      console.log('Discord shard reconnecting...');
-    });
-
-    client.on('shardReady', (id) => {
-      console.log('Discord shard ready:', id);
-    });
-
-    client.on('warn', (info) => {
-      console.log('Discord warn:', info);
     });
 
     client.once('ready', async () => {
@@ -337,20 +314,18 @@ async function startBot() {
       }
     });
 
-    console.log('LOGIN CALL START');
     const loginPromise = client.login(config.token);
-    console.log('LOGIN CALL RETURNED/PROMISE CREATED');
 
     const loginTimeout = setTimeout(() => {
-      console.log('Discord login diagnostic timeout after 20s');
+      console.error('Discord login timed out');
+      console.error('client.ws.status:', client.ws.status);
+      reject(new Error('Discord login timed out'));
     }, 20000);
 
     loginPromise.then(() => {
       clearTimeout(loginTimeout);
-      console.log('LOGIN PROMISE RESOLVED');
     }).catch((err) => {
       clearTimeout(loginTimeout);
-      console.error('Failed to login to Discord:', err.message);
       reject(err);
     });
   });
