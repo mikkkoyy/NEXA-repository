@@ -212,6 +212,7 @@ async function startBot() {
 
     client.once('ready', async () => {
       console.log('NEXA connected to Discord');
+      resolve();
 
       try {
         await restoreSnapshot();
