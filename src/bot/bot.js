@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, RESTEvents } = require('discord.js');
 const config = require('../config/config');
 const { commands } = require('../commands/commands');
 const Database = require('../database/database');
@@ -49,12 +49,18 @@ client.on('shardError', (err) => {
   console.error('Discord shard error:', err.message);
 });
 
-// TEMPORARY DIAGNOSTIC: surfaces discord.js's internal connection-lifecycle
-// logging (fetching gateway info, opening the socket, identify/resume, etc.)
-// so we can see exactly which step it's stuck on instead of just a blank
-// 60-second gap. Safe to remove once the connection issue is resolved.
-client.on('debug', (info) => {
-  console.log('[Discord Debug]', info);
+// Permanent operational visibility: Discord's rate limiter is per-bot-token
+// for authenticated requests (not per-IP), so if the gateway login process
+// ever stalls again, this tells us immediately whether it's because we hit
+// an API rate limit, and on which route.
+client.rest.on(RESTEvents.RateLimited, (info) => {
+  console.warn('[NEXA] Discord API rate limit hit:', JSON.stringify({
+    route: info.route,
+    method: info.method,
+    global: info.global,
+    scope: info.scope,
+    retryAfterMs: info.retryAfter,
+  }));
 });
 
 function setupRepositories() {
@@ -218,45 +224,7 @@ async function restoreSnapshot() {
   }
 }
 
-// TEMPORARY DIAGNOSTIC: makes a plain HTTPS request to Discord's REST API,
-// completely outside discord.js, with its own short timeout. This tells us
-// within ~15s whether this host can reach Discord at all over HTTPS, instead
-// of waiting the full 60s to find out indirectly. Safe to remove once the
-// connection issue is resolved.
-function checkDiscordReachable() {
-  const https = require('https');
-  return new Promise((resolve) => {
-    const start = Date.now();
-    const req = https.get(
-      'https://discord.com/api/v10/gateway',
-      { timeout: 15000, headers: { 'User-Agent': 'nexa-diagnostic/1.0' } },
-      (res) => {
-        let data = '';
-        res.on('data', (chunk) => { data += chunk; });
-        res.on('end', () => {
-          console.log(`[Diagnostic] Discord REST reachable in ${Date.now() - start}ms. Status: ${res.statusCode}`);
-          resolve(true);
-        });
-      }
-    );
-    req.on('timeout', () => {
-      console.error(`[Diagnostic] Discord REST request TIMED OUT after ${Date.now() - start}ms (no response) — this points to a network/firewall problem between this host and Discord, not a code or token issue.`);
-      req.destroy();
-      resolve(false);
-    });
-    req.on('error', (err) => {
-      console.error(`[Diagnostic] Discord REST request ERRORED after ${Date.now() - start}ms:`, err.code || err.message);
-      resolve(false);
-    });
-  });
-}
-
 async function startBot() {
-  console.log('[Diagnostic] config.token present:', typeof config.token === 'string' && config.token.length > 0, '- length:', config.token ? config.token.length : 0);
-
-  const reachable = await checkDiscordReachable();
-  console.log('[Diagnostic] Discord REST reachability check result:', reachable ? 'REACHABLE' : 'UNREACHABLE');
-
   return new Promise((resolve, reject) => {
     client.on('shardDisconnect', (event) => {
       console.log('Discord shard disconnect:', 'code=' + event.code, 'reason=' + (event.reason || 'none'));
@@ -265,6 +233,7 @@ async function startBot() {
     const loginTimeout = setTimeout(() => {
       console.error('Discord login timed out after 60s');
       console.error('client.ws.status:', client.ws.status);
+      console.error('[NEXA] No READY event and no rejected login promise within 60s. If this recurs, check the logs above for a "[NEXA] Discord API rate limit hit" line (identify/session-start-limit exhaustion, often from repeated rapid restarts) before assuming a network fault — Discord REST/API reachability was already confirmed separately.');
       client.destroy();
       reject(new Error('Discord login timed out'));
     }, 60000);

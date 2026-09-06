@@ -1,7 +1,7 @@
-// Force IPv4-first DNS resolution. Some hosts (Render included) advertise
-// IPv6 routes that don't actually work, which makes outbound connections to
-// Discord's gateway/API hang indefinitely instead of failing fast. This must
-// run before discord.js (or anything else that makes a network request) loads.
+// Prefer IPv4 for outbound DNS lookups. Cheap, standard hardening for
+// containerized hosts; must run before discord.js or anything else that
+// makes a network request loads. (Confirmed not the root cause of the
+// gateway hang on this deployment, but harmless and worth keeping.)
 const dns = require('node:dns');
 dns.setDefaultResultOrder('ipv4first');
 
