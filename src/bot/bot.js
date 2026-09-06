@@ -234,8 +234,8 @@ async function startBot() {
       }
 
       try {
-        const { profileRepo, questRepo, collectibleRepo, achievementRepo, economyRepo, worldRepo, paymentsRepo } = setupRepositories();
-        setupServices({ profileRepo, questRepo, collectibleRepo, achievementRepo, economyRepo, worldRepo, paymentsRepo });
+        const repos = setupRepositories();
+        setupServices(repos);
       } catch (err) {
         console.error('Failed to setup services:', err.message);
       }
