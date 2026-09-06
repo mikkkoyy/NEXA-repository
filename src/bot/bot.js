@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, RESTEvents } = require('discord.js');
 const config = require('../config/config');
 const { commands } = require('../commands/commands');
 const Database = require('../database/database');
@@ -28,13 +28,13 @@ const PaymentsService = require('../payments/service');
 
 let isShuttingDown = false;
 let backupInterval = null;
+let isInitialized = false;
+let connectionAttempts = 0;
+const MAX_BACKOFF_MS = 300000;
 
-// Initialize and migrate database
 const database = new Database(':memory:');
 migrate(database);
 
-// 1. GLOBAL SCOPE DECLARATION: Fixes ReferenceError on module.exports
-console.log('Creating Discord client...');
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -42,13 +42,37 @@ const client = new Client({
   ]
 });
 
-console.log('Registering Discord event handlers...');
 client.on('error', (err) => {
-  console.error('Discord client error:', err.message);
+  console.error('[NEXA] Discord client error:', err.message);
 });
 
 client.on('shardError', (err) => {
-  console.error('Discord shard error:', err.message);
+  console.error('[NEXA] Discord shard error:', err.message);
+});
+
+client.on('shardDisconnect', (event) => {
+  console.log('[NEXA] Discord shard disconnect:', 'code=' + event.code, 'reason=' + (event.reason || 'none'));
+});
+
+client.on('shardReady', (shardId, resumeAttempts) => {
+  console.log('[NEXA] Discord shard ready:', 'id=' + shardId, 'resumeAttempts=' + resumeAttempts);
+});
+
+client.on('shardResume', (shardId, resumeAttempts) => {
+  console.log('[NEXA] Discord shard resume:', 'id=' + shardId, 'resumeAttempts=' + resumeAttempts);
+});
+
+client.on('invalidated', () => {
+  console.warn('[NEXA] Session invalidated - requires re-identify');
+});
+
+client.on(RESTEvents.RateLimited, (info) => {
+  console.warn('[NEXA] Discord API rate limit hit:', JSON.stringify({
+    route: info.route,
+    method: info.method,
+    global: info.global,
+    retryAfterMs: info.retryAfter,
+  }));
 });
 
 function setupRepositories() {
@@ -107,9 +131,11 @@ function setupServices({ profileRepo, questRepo, collectibleRepo, achievementRep
   client.creatorContentService = creatorContentService;
 
   const creatorMarketplaceService = new CreatorMarketplaceService(creatorMarketplaceRepo);
+  client.creatorMarketplaceRepository = creatorMarketplaceRepo;
   client.creatorMarketplaceService = creatorMarketplaceService;
 
   const creatorEarningsService = new CreatorEarningsService(creatorEarningsRepo, paymentsRepo);
+  client.creatorEarningsRepository = creatorEarningsRepo;
   client.creatorEarningsService = creatorEarningsService;
 }
 
@@ -152,16 +178,11 @@ async function doBackup() {
 }
 
 async function startBackupTimer() {
-  try {
-    await doBackup();
-
-    if (backupInterval) {
-      clearInterval(backupInterval);
-    }
-    backupInterval = setInterval(doBackup, 10 * 60 * 1000);
-  } catch (err) {
-    console.error('[Database] Backup timer error:', err.message);
+  if (backupInterval) {
+    clearInterval(backupInterval);
   }
+  await doBackup();
+  backupInterval = setInterval(doBackup, 10 * 60 * 1000);
 }
 
 async function restoreSnapshot() {
@@ -171,7 +192,14 @@ async function restoreSnapshot() {
     return;
   }
 
-  const channel = await client.channels.fetch(backupChannelId);
+  let channel;
+  try {
+    channel = await client.channels.fetch(backupChannelId);
+  } catch (err) {
+    console.log('[Database] Backup channel not found. Starting fresh database.');
+    return;
+  }
+
   if (!channel || channel.type !== 0) {
     console.log('[Database] Backup channel not found. Starting fresh database.');
     return;
@@ -205,61 +233,187 @@ async function restoreSnapshot() {
     database.db.pragma('synchronous = NORMAL');
     database.db.pragma('journal_mode = WAL');
 
-    console.log('[Database] Snapshot found.');
     console.log('[Database] Snapshot restored successfully.');
   } catch (err) {
     console.error('[Database] Snapshot restore failed:', err.message);
   }
 }
 
-async function startBot() {
-  return new Promise((resolve, reject) => {
-    client.on('shardDisconnect', (event) => {
-      console.log('Discord shard disconnect:', 'code=' + event.code, 'reason=' + (event.reason || 'none'));
+function initializeApplication() {
+  if (isInitialized) {
+    return;
+  }
+  isInitialized = true;
+
+  console.log('[NEXA] Initializing application...');
+
+  Promise.resolve().then(async () => {
+    try {
+      await restoreSnapshot();
+    } catch (err) {
+      console.error('[Database] Snapshot restore error:', err.message);
+    }
+
+    try {
+      const repos = setupRepositories();
+      setupServices(repos);
+    } catch (err) {
+      console.error('[NEXA] Failed to setup services:', err.message);
+    }
+
+    try {
+      await registerCommands();
+      console.log('[NEXA] Commands registered');
+    } catch (err) {
+      console.error('[NEXA] Failed to register commands:', err.message);
+    }
+
+    try {
+      await client.user.setPresence({
+        activities: [{ name: config.presence.name, type: config.presence.type }],
+        status: 'online'
+      });
+    } catch (err) {
+      console.error('[NEXA] Failed to set presence:', err.message);
+    }
+
+    try {
+      await startBackupTimer();
+    } catch (err) {
+      console.error('[NEXA] Failed to start backup timer:', err.message);
+    }
+
+    console.log('[NEXA] Ready');
+  }).catch(err => {
+    console.error('[NEXA] Application initialization error:', err.message);
+  });
+}
+
+client.on('ready', () => {
+  console.log('[NEXA] Connected to Discord');
+  initializeApplication();
+});
+
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  const command = commands.find(cmd => cmd.data.name === interaction.commandName);
+  if (!command) return;
+
+  try {
+    await command.execute(interaction);
+  } catch (err) {
+    console.error(`[NEXA] Error executing ${interaction.commandName}:`, err.message);
+    if (interaction.replied || interaction.deferred) {
+      await interaction.editReply('An error occurred while executing this command.');
+    } else {
+      await interaction.reply('An error occurred while executing this command.');
+    }
+  }
+});
+
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+  if (!message.guild) return;
+
+  try {
+    const identityService = client.identityService;
+    if (identityService) {
+      await identityService.recordMessage(
+        message,
+        message.guild.id,
+        message.author.id,
+        message.author.username,
+        message.member?.nickname || message.author.displayName || message.author.username
+      );
+    }
+  } catch (err) {
+    console.error('[NEXA] Error recording message activity:', err.message);
+  }
+
+  try {
+    const questService = client.questService;
+    if (questService) {
+      questService.recordActivity(message.guild.id, message.author.id);
+    }
+  } catch (err) {
+    console.error('[NEXA] Error recording quest activity:', err.message);
+  }
+
+  try {
+    const achievementService = client.achievementService;
+    if (achievementService) {
+      achievementService.recordActivity(message.guild.id, message.author.id);
+    }
+  } catch (err) {
+    console.error('[NEXA] Error recording achievement activity:', err.message);
+  }
+});
+
+function getBackoffDelay() {
+  const delay = Math.min(1000 * Math.pow(2, connectionAttempts), MAX_BACKOFF_MS);
+  return delay;
+}
+
+function attemptLogin() {
+  connectionAttempts++;
+  const delay = getBackoffDelay();
+  
+  console.log(`[NEXA] Discord login attempt #${connectionAttempts} (backoff: ${delay / 1000}s)`);
+
+  client.login(config.token)
+    .then(() => {
+      console.log('[NEXA] Discord login initiated');
+    })
+    .catch((err) => {
+      console.error('[NEXA] Discord login error:', err.message);
+      
+      if (!isShuttingDown && !client.isReady()) {
+        console.log(`[NEXA] Retry in ${delay / 1000}s`);
+        setTimeout(attemptLogin, delay);
+      }
     });
+}
 
-    const loginTimeout = setTimeout(() => {
-      console.error('Discord login timed out after 60s');
-      console.error('client.ws.status:', client.ws.status);
-      client.destroy();
-      reject(new Error('Discord login timed out'));
-    }, 60000);
+function startBot() {
+  console.log('[NEXA] Starting Discord Gateway connection...');
+  attemptLogin();
+  
+  return Promise.resolve();
+}
 
-    client.once('ready', async () => {
-      clearTimeout(loginTimeout);
-      console.log('NEXA connected to Discord');
+async function shutdown() {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
 
-      // Asynchronously handle initializations to prevent blocking the event loop heartbeat
-      setImmediate(async () => {
-        try {
-          await restoreSnapshot();
-        } catch (err) {
-          console.error('[Database] Snapshot restore error:', err.message);
-        }
+  console.log('[NEXA] Shutting down...');
 
-        try {
-          // Destructure all repositories perfectly including creator components
-          const { 
-            profileRepo, questRepo, collectibleRepo, achievementRepo, 
-            economyRepo, worldRepo, paymentsRepo, analyticsRepo,
-            creatorRepo, creatorContentRepo, creatorMarketplaceRepo, creatorEarningsRepo 
-          } = setupRepositories();
+  if (client && client.isReady()) {
+    client.destroy();
+  }
 
-          setupServices({ 
-            profileRepo, questRepo, collectibleRepo, achievementRepo, 
-            economyRepo, worldRepo, paymentsRepo, analyticsRepo,
-            creatorRepo, creatorContentRepo, creatorMarketplaceRepo, creatorEarningsRepo 
-          });
-        } catch (err) {
-          console.error('Failed to setup services:', err.message);
-        }
+  if (backupInterval) {
+    clearInterval(backupInterval);
+  }
 
-        try {
-          await registerCommands();
-          console.log('Commands registered');
-        } catch (err) {
-          console.error('Failed to register commands:', err.message);
-        }
+  console.log('[NEXA] Shutdown complete');
+}
 
-        try {
-          await client.user.setPresence({
+function setupShutdownHandlers() {
+  process.on('SIGINT', () => {
+    console.log('\nReceived SIGINT');
+    shutdown().then(() => process.exit(0));
+  });
+
+  process.on('SIGTERM', () => {
+    console.log('\nReceived SIGTERM');
+    shutdown().then(() => process.exit(0));
+  });
+}
+
+module.exports = {
+  client,
+  startBot,
+  shutdown,
+  setupShutdownHandlers,
+};
