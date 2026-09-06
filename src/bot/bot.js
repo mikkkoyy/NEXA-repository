@@ -217,11 +217,11 @@ async function startBot() {
     });
 
     const loginTimeout = setTimeout(() => {
-      console.error('Discord login timed out after 20s');
+      console.error('Discord login timed out after 60s');
       console.error('client.ws.status:', client.ws.status);
       client.destroy();
       reject(new Error('Discord login timed out'));
-    }, 20000);
+    }, 60000);
 
     client.once('ready', async () => {
       clearTimeout(loginTimeout);
