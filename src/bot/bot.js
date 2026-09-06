@@ -219,6 +219,26 @@ async function restoreSnapshot() {
 
 async function startBot() {
   return new Promise((resolve, reject) => {
+    client.on('shardConnecting', () => {
+      console.log('Discord shard connecting...');
+    });
+
+    client.on('shardDisconnect', (event) => {
+      console.log('Discord shard disconnect:', 'code=' + event.code, 'reason=' + (event.reason || 'none'));
+    });
+
+    client.on('shardReconnecting', () => {
+      console.log('Discord shard reconnecting...');
+    });
+
+    client.on('shardReady', (id) => {
+      console.log('Discord shard ready:', id);
+    });
+
+    client.on('warn', (info) => {
+      console.log('Discord warn:', info);
+    });
+
     client.once('ready', async () => {
       console.log('NEXA connected to Discord');
 
@@ -317,10 +337,19 @@ async function startBot() {
       }
     });
 
-    console.log('Attempting Discord login...');
-    client.login(config.token).then(() => {
-      console.log('Discord login promise resolved');
+    console.log('LOGIN CALL START');
+    const loginPromise = client.login(config.token);
+    console.log('LOGIN CALL RETURNED/PROMISE CREATED');
+
+    const loginTimeout = setTimeout(() => {
+      console.log('Discord login diagnostic timeout after 20s');
+    }, 20000);
+
+    loginPromise.then(() => {
+      clearTimeout(loginTimeout);
+      console.log('LOGIN PROMISE RESOLVED');
     }).catch((err) => {
+      clearTimeout(loginTimeout);
       console.error('Failed to login to Discord:', err.message);
       reject(err);
     });
