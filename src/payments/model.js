@@ -7,7 +7,7 @@ const StatusFailed = 'failed';
 const StatusCancelled = 'cancelled';
 const StatusRefunded = 'refunded';
 
-const DefaultPricePremiumMinor = 5000; // PHP 50.00
+const DefaultPricePremiumMinor = 9900; // PHP 99.00
 const DefaultPremiumDurationDays = 30;
 const ProductPlanKey = 'premium';
 const DefaultPlatformFeePercent = 20; // 20% platform fee on creator sales

@@ -19,8 +19,8 @@ class PaymentsService {
     }
 
     // Get the product/plan
-    const product = this.repo.getPaymentByID(1); // Simplified - would look up by plan key
-    if (!product) {
+    const plan = this.repo.getPaymentPlanByKey(planKey || ProductPlanKey);
+    if (!plan || !plan.enabled) {
       throw new Error(ErrPlanNotPurchasable);
     }
 
@@ -28,9 +28,9 @@ class PaymentsService {
     if (this.testMode) {
       const providerPaymentID = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const payment = this.repo.createPayment(
-        guildID, userID, planKey, 'mock', providerPaymentID,
-        product ? product.priceMinor : DefaultPricePremiumMinor,
-        product ? product.currency : CurrencyPHP,
+        guildID, userID, planKey || ProductPlanKey, 'mock', providerPaymentID,
+        plan.priceMinor,
+        plan.currency,
         StatusPending
       );
 

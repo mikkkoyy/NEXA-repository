@@ -395,6 +395,15 @@ function migrate(db) {
   } catch (e) {
     // Column may already exist
   }
+  // Update Premium payment plan price to PHP 99.00 (9900 minor units)
+  try {
+    const plan = db.db.prepare("SELECT price_minor FROM payment_plans WHERE plan_key = 'premium'").get();
+    if (plan && plan.price_minor === 5000) {
+      db.exec("UPDATE payment_plans SET price_minor = 9900, updated_at = ? WHERE plan_key = 'premium'", [new Date().toISOString()]);
+    }
+  } catch (e) {
+    // Table or plan may not exist
+  }
 // Add earnings columns to creator_earnings if missing
   try {
     const result = db.db.prepare("PRAGMA table_info('creator_earnings')").all();
