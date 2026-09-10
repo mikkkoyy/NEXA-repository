@@ -80,7 +80,7 @@ class ProfileRepository {
         `INSERT INTO member_profiles
           (guild_id, user_id, username, display_name, xp, level, reputation,
            message_count, first_seen_at, last_active_at, created_at, updated_at)
-          VALUES (?, ?, ?, ?, 0, 1, 0, 0, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, 0, 1, 0, 0, ?, ?, ?, ?)`,
         [guildID, userID, username, displayName, ts, ts, ts, ts]
       );
     }
@@ -127,7 +127,7 @@ class ProfileRepository {
         `INSERT INTO member_profiles
           (guild_id, user_id, username, display_name, xp, level, reputation,
            message_count, first_seen_at, last_active_at, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?)`,
         [guildID, userID, username, displayName, xpDelta, newLevel, ts, ts, ts, ts]
       );
     } else {
@@ -137,7 +137,7 @@ class ProfileRepository {
         `UPDATE member_profiles
           SET xp = ?, level = ?, message_count = ?, last_active_at = ?,
               updated_at = ?, username = ?, display_name = ?
-          WHERE guild_id = ? AND user_id = ?`,
+        WHERE guild_id = ? AND user_id = ?`,
         [newXP, newLevel, existing.message_count + 1, ts, ts, username, displayName, guildID, userID]
       );
     }
@@ -164,8 +164,8 @@ class ProfileRepository {
         `INSERT INTO member_profiles
           (guild_id, user_id, username, display_name, xp, level, reputation,
            message_count, first_seen_at, last_active_at, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?)`,
-        [guildID, userID, '', delta ? '' : '', delta, newLevel, ts, ts, ts, ts]
+         VALUES (?, ?, '', '', ?, ?, 0, 0, ?, ?, ?, ?)`,
+        [guildID, userID, delta, newLevel, ts, ts, ts, ts]
       );
     } else {
       const newXP = existing.xp + delta;
@@ -180,4 +180,8 @@ class ProfileRepository {
   }
 }
 
-module.exports = { ProfileRepository, xpForLevel, levelForXP };
+module.exports = {
+  ProfileRepository,
+  xpForLevel,
+  levelForXP
+};
