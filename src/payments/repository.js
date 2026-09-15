@@ -182,27 +182,6 @@ class PaymentsRepository {
 
     return result.changes > 0;
   }
-
-  getPaymentPlanByKey(planKey) {
-    if (!planKey) {
-      return null;
-    }
-    const row = this.db.db.prepare(
-      `SELECT plan_key, duration_days, price_minor, currency, enabled, created_at, updated_at FROM payment_plans WHERE plan_key = ?`
-    ).get(planKey);
-
-    if (!row) return null;
-
-    return {
-      planKey: row.plan_key,
-      durationDays: row.duration_days,
-      priceMinor: row.price_minor,
-      currency: row.currency,
-      enabled: row.enabled === 1,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
-    };
-  }
 }
 
 module.exports = { PaymentsRepository };

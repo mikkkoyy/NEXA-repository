@@ -20,11 +20,11 @@ const { CreatorContentService } = require('../creator/content-service');
 const { CreatorRepository } = require('../creator/repository');
 const { CreatorService } = require('../creator/service');
 const IdentityService = require('../identity/service');
-const QuestService = require('../quests/service');
-const AchievementService = require('../achievements/service');
-const EconomyService = require('../economy/service');
-const WorldService = require('../world/service');
-const PaymentsService = require('../payments/service');
+const { QuestService } = require('../quests/service');
+const { AchievementService } = require('../achievements/service');
+const { EconomyService } = require('../economy/service');
+const { WorldService } = require('../world/service');
+const { PaymentsService } = require('../payments/service');
 
 let isShuttingDown = false;
 let backupInterval = null;
