@@ -5,7 +5,7 @@ title NEXA - GitHub Commit + Push
 
 cd /d "D:\FILES\project\NEXA_nodejs" || (
     echo [ERROR] NEXA repository not found.
-    pause
+    timeout /t 3 /nobreak >nul
     exit /b 1
 )
 
@@ -21,7 +21,7 @@ echo.
 git rev-parse --is-inside-work-tree >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] This folder is not a Git repository.
-    pause
+    timeout /t 3 /nobreak >nul
     exit /b 1
 )
 
@@ -42,7 +42,7 @@ git add -A
 
 if errorlevel 1 (
     echo [ERROR] git add failed.
-    pause
+    timeout /t 3 /nobreak >nul
     exit /b 1
 )
 
@@ -51,7 +51,7 @@ git diff --cached --quiet
 if not errorlevel 1 (
     echo.
     echo [INFO] Nothing to commit.
-    pause
+    timeout /t 2 /nobreak >nul
     exit /b 0
 )
 
@@ -67,7 +67,7 @@ git commit -m "%COMMIT_MSG%"
 if errorlevel 1 (
     echo.
     echo [ERROR] Commit failed.
-    pause
+    timeout /t 3 /nobreak >nul
     exit /b 1
 )
 
@@ -79,7 +79,7 @@ if errorlevel 1 (
     echo.
     echo [ERROR] Push failed.
     echo The commit is saved locally.
-    pause
+    timeout /t 4 /nobreak >nul
     exit /b 1
 )
 
@@ -88,9 +88,10 @@ echo ==========================================
 echo          GITHUB PUSH SUCCESSFUL
 echo ==========================================
 echo.
-
 git log -1 --oneline
-
 echo.
-pause
+echo Closing automatically...
+timeout /t 2 /nobreak >nul
+
 endlocal
+exit /b 0
