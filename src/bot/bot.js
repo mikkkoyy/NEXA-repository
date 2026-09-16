@@ -208,11 +208,17 @@ async function restoreSnapshot() {
   const attachments = await channel.messages.fetch({
     limit: 50
   }).then(messages => {
-    const dbAttachments = messages.map(msg => msg.attachments).flat();
-    const nexaAttachments = dbAttachments.filter(
-      att => att.name === 'nexa_cloud.db'
-    );
-    return nexaAttachments.sort((a, b) => b.createdTimestamp - a.createdTimestamp);
+    const found = [];
+    for (const message of messages.values()) {
+      for (const att of message.attachments.values()) {
+        if (att.name === 'nexa_cloud.db') {
+          found.push({ attachment: att, timestamp: message.createdTimestamp ?? 0 });
+        }
+      }
+    }
+    return found
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .map(entry => entry.attachment);
   });
 
   if (attachments.length === 0) {
@@ -289,7 +295,7 @@ function initializeApplication() {
   });
 }
 
-client.on('ready', () => {
+client.once('clientReady', () => {
   console.log('[NEXA] Connected to Discord');
   initializeApplication();
 });
