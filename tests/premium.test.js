@@ -49,13 +49,14 @@ function createHarness() {
 
 function buy(harness, planKey, userID = 'u1', guildID = 'g1') {
   const { payment } = harness.paymentsService.buyPremium(guildID, userID, planKey);
-  return harness.paymentsService.confirmPayment(payment.providerPaymentID);
+  return harness.paymentsService.confirmPayment(payment.providerPaymentID, guildID, userID);
 }
 
 function fakeInteraction(client, subcommand, opts = {}) {
   return {
     guild: { id: 'g1' },
     user: { id: 'u1' },
+    memberPermissions: opts.memberPermissions || { has: () => true },
     options: {
       getSubcommand: () => subcommand,
       getString: (name) => (opts.strings || {})[name] ?? null,
@@ -123,6 +124,28 @@ describe('NEXA Premium', () => {
       assert.strictEqual(economy.premiumPlans.quarterly.durationDays, 90);
       assert.strictEqual(economy.premiumPlans.yearly.durationDays, 365);
     });
+
+    it('reconciles persisted plan catalogs with the canonical catalog', () => {
+      harness.db.exec(
+        `UPDATE premium_plans SET name = 'Wrong', description = 'Wrong', enabled = 0 WHERE plan_key = 'premium_monthly'`
+      );
+      harness.db.exec(
+        `UPDATE payment_plans SET duration_days = 1, price_minor = 1, currency = 'USD', enabled = 0 WHERE plan_key = 'premium_monthly'`
+      );
+
+      harness.premiumRepo.ensurePlans(harness.db);
+      harness.paymentsRepo.ensurePlans(harness.db);
+
+      const premiumPlan = harness.premiumRepo.getPlan('g1', 'premium_monthly');
+      const paymentPlan = harness.paymentsRepo.getPlanByKey('premium_monthly');
+      assert.strictEqual(premiumPlan.name, 'Monthly');
+      assert.strictEqual(premiumPlan.description, 'NEXA Premium for 30 days');
+      assert.strictEqual(premiumPlan.enabled, true);
+      assert.strictEqual(paymentPlan.durationDays, 30);
+      assert.strictEqual(paymentPlan.priceMinor, 4900);
+      assert.strictEqual(paymentPlan.currency, 'PHP');
+      assert.strictEqual(paymentPlan.enabled, true);
+    });
   });
 
   describe('5. Premium activation', () => {
@@ -144,6 +167,13 @@ describe('NEXA Premium', () => {
       assert.ok(entitlement.expiresAt);
       assert.ok(entitlement.paymentReference);
       assert.strictEqual(entitlement.paymentReference, res.payment.providerPaymentID);
+    });
+
+    it('test activation uses the canonical Monthly plan and duration', () => {
+      const entitlement = harness.service.testActivate('g1', 'u1');
+      assert.strictEqual(entitlement.planKey, 'premium_monthly');
+      assert.strictEqual(entitlement.expiresAt.getTime(), harness.clock.now.getTime() + 30 * DAY);
+      assert.strictEqual(harness.paymentsRepo.getPlanByKey('premium_monthly').durationDays, 30);
     });
   });
 
@@ -216,10 +246,10 @@ describe('NEXA Premium', () => {
     it('a duplicated payment cannot grant premium twice', () => {
       const { payment } = harness.paymentsService.buyPremium('g1', 'u1', 'premium_monthly');
       const ref = payment.providerPaymentID;
-      harness.paymentsService.confirmPayment(ref);
+      harness.paymentsService.confirmPayment(ref, 'g1', 'u1');
       const once = harness.service.getStatus('g1', 'u1').entitlement.expiresAt.getTime();
 
-      harness.paymentsService.confirmPayment(ref); // replay
+      harness.paymentsService.confirmPayment(ref, 'g1', 'u1'); // replay
       const twice = harness.service.getStatus('g1', 'u1').entitlement.expiresAt.getTime();
 
       assert.strictEqual(twice, once);
@@ -239,6 +269,44 @@ describe('NEXA Premium', () => {
         'g1', 'u1', 'premium_monthly', 'mock', 'ref_cancelled_1', 4900, 'PHP', 'cancelled'
       );
       assert.throws(() => harness.service.activateFromPayment(payment), /paid/);
+      assert.strictEqual(harness.service.isPremium('g1', 'u1'), false);
+    });
+
+    it('confirmation rejects non-pending payments without granting premium', () => {
+      for (const status of ['failed', 'cancelled', 'expired', 'refunded']) {
+        const payment = harness.paymentsRepo.createPayment(
+          'g1', 'u1', 'premium_monthly', 'mock', `ref_${status}_1`, 4900, 'PHP', status
+        );
+        assert.throws(() => harness.paymentsService.confirmPayment(payment.providerPaymentID, 'g1', 'u1'), /not pending/);
+        assert.strictEqual(harness.service.isPremium('g1', 'u1'), false);
+      }
+    });
+
+    it('confirmation rejects an amount mismatch before changing status', () => {
+      const payment = harness.paymentsRepo.createPayment(
+        'g1', 'u1', 'premium_monthly', 'mock', 'ref_amount_mismatch_1', 1, 'PHP', 'pending'
+      );
+      assert.throws(() => harness.paymentsService.confirmPayment(payment.providerPaymentID, 'g1', 'u1'), /amount/);
+      assert.strictEqual(harness.paymentsRepo.getPaymentByID(payment.id).status, 'pending');
+      assert.strictEqual(harness.service.isPremium('g1', 'u1'), false);
+    });
+
+    it('activation rejects a currency mismatch', () => {
+      const payment = harness.paymentsRepo.createPayment(
+        'g1', 'u1', 'premium_monthly', 'mock', 'ref_currency_mismatch_1', 4900, 'PHP', 'paid'
+      );
+      harness.db.exec(`UPDATE payments SET currency = 'USD' WHERE id = ?`, [payment.id]);
+      const stored = harness.paymentsRepo.getPaymentByID(payment.id);
+      assert.throws(() => harness.service.activateFromPayment(stored), /currency/);
+      assert.strictEqual(harness.service.isPremium('g1', 'u1'), false);
+    });
+
+    it('activation rejects a disabled payment plan', () => {
+      harness.db.exec(`UPDATE payment_plans SET enabled = 0 WHERE plan_key = 'premium_monthly'`);
+      const payment = harness.paymentsRepo.createPayment(
+        'g1', 'u1', 'premium_monthly', 'mock', 'ref_disabled_plan_1', 4900, 'PHP', 'paid'
+      );
+      assert.throws(() => harness.service.activateFromPayment(payment), /not purchasable/);
       assert.strictEqual(harness.service.isPremium('g1', 'u1'), false);
     });
 
@@ -300,6 +368,27 @@ describe('NEXA Premium', () => {
     });
   });
 
+  describe('Snapshot compatibility', () => {
+    it('restores Premium entitlements and their payment records', () => {
+      const result = buy(harness, 'premium_monthly');
+      const snapshot = harness.db.serialize();
+      const restored = new Database(snapshot);
+      try {
+        const premiumRepo = new PremiumRepository(restored);
+        const paymentsRepo = new PaymentsRepository(restored);
+        const service = new PremiumService(premiumRepo, paymentsRepo, null, true, () => new Date('2026-01-01T00:00:00.000Z'));
+        const status = service.getStatus('g1', 'u1');
+
+        assert.strictEqual(status.active, true);
+        assert.strictEqual(status.entitlement.planKey, 'premium_monthly');
+        assert.strictEqual(status.entitlement.paymentReference, result.payment.providerPaymentID);
+        assert.ok(paymentsRepo.getPaymentByID(status.entitlement.paymentId));
+      } finally {
+        restored.close();
+      }
+    });
+  });
+
   describe('15. User isolation and security', () => {
     it('premium is granted per user, not to everyone in the guild', () => {
       buy(harness, 'premium_monthly', 'u1');
@@ -315,6 +404,15 @@ describe('NEXA Premium', () => {
       assert.ok(harness.paymentsService.getPayment('g1', 'u1', ref));
       assert.strictEqual(harness.paymentsService.getPayment('g1', 'u2', ref), null);
       assert.strictEqual(harness.paymentsService.getPayment('g2', 'u1', ref), null);
+    });
+
+    it('confirmation cannot activate a payment for another guild or user', () => {
+      const { payment } = harness.paymentsService.buyPremium('g1', 'u1', 'premium_monthly');
+      const ref = payment.providerPaymentID;
+
+      assert.throws(() => harness.paymentsService.confirmPayment(ref, 'g2', 'u1'), /different guild/);
+      assert.throws(() => harness.paymentsService.confirmPayment(ref, 'g1', 'u2'), /different user/);
+      assert.strictEqual(harness.service.isPremium('g1', 'u1'), false);
     });
 
     it('a non-premium user cannot claim the premium economy bonus', () => {
@@ -386,6 +484,31 @@ describe('NEXA Premium', () => {
       assert.strictEqual(interaction.replied, true);
       const description = interaction.lastReply.embeds[0].data.description;
       assert.ok(description.includes('Activated'));
+    });
+
+    it('/premium test-activate is restricted and uses the catalog plan', () => {
+      const subcommand = premiumCommand.data.options.find(option => option.name === 'test-activate');
+      assert.strictEqual(subcommand.options.length, 0);
+    });
+
+    it('/premium test-activate rejects a normal member', async () => {
+      const client = { premiumService: harness.service, paymentsService: harness.paymentsService, economyService: harness.economyService };
+      const interaction = fakeInteraction(client, 'test-activate', {
+        memberPermissions: { has: () => false }
+      });
+      await premiumCommand.execute(interaction);
+      assert.ok(interaction.lastReply.content.includes('Manage Server'));
+      assert.strictEqual(harness.service.isPremium('g1', 'u1'), false);
+    });
+
+    it('/premium test-activate activates the Monthly plan for a manager', async () => {
+      const client = { premiumService: harness.service, paymentsService: harness.paymentsService, economyService: harness.economyService };
+      const interaction = fakeInteraction(client, 'test-activate');
+      await premiumCommand.execute(interaction);
+      assert.strictEqual(interaction.replied, true);
+      const description = interaction.lastReply.embeds[0].data.description;
+      assert.ok(description.includes('Plan: Monthly'));
+      assert.strictEqual(harness.service.getStatus('g1', 'u1').entitlement.planKey, 'premium_monthly');
     });
   });
 });

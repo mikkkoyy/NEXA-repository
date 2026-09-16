@@ -8,8 +8,13 @@ const {
   ErrPaymentProviderUnavailable,
   ErrPaymentNotFound,
   ErrReferenceRequired,
+  ErrPaymentNotPending,
   createCheckout
 } = require('./model');
+const {
+  ErrPaymentBelongsToGuild,
+  ErrPaymentBelongsToUser
+} = require('../premium/model');
 
 class PaymentsService {
   constructor(paymentsRepo, testMode) {
@@ -58,32 +63,54 @@ class PaymentsService {
     throw new Error(ErrPaymentProviderUnavailable);
   }
 
-  confirmPayment(reference) {
+  confirmPayment(reference, guildID, userID) {
     if (!reference) {
       throw new Error(ErrReferenceRequired);
+    }
+    if (!guildID) {
+      throw new Error(ErrGuildRequired);
+    }
+    if (!userID) {
+      throw new Error(ErrUserRequired);
+    }
+    if (!this.testMode) {
+      throw new Error(ErrPaymentProviderUnavailable);
     }
 
     const payment = this.repo.getPaymentByReference('mock', reference);
     if (!payment) {
       throw new Error(ErrPaymentNotFound);
     }
-
-    if (this.testMode) {
-      const wasPaid = payment.status === StatusPaid;
-      this.repo.updatePaymentStatus(payment.id, StatusPaid, new Date());
-
-      // Activate premium only when the payment transitions to paid, so an
-      // already-processed payment can never grant premium twice.
-      let activated = false;
-      if (!wasPaid && this.premiumService && this.premiumService.isPremiumPlanKey(payment.planKey)) {
-        this.premiumService.activateFromPayment(this.repo.getPaymentByID(payment.id));
-        activated = true;
-      }
-
-      return { payment: this.repo.getPaymentByID(payment.id), activated };
+    if (guildID && payment.guildID !== guildID) {
+      throw ErrPaymentBelongsToGuild;
+    }
+    if (userID && payment.userID !== userID) {
+      throw ErrPaymentBelongsToUser;
     }
 
-    throw new Error(ErrPaymentProviderUnavailable);
+    if (this.premiumService && this.premiumService.isPremiumPlanKey(payment.planKey)) {
+      this.premiumService.assertPaymentMatchesPlan(payment);
+    }
+
+    if (payment.status === StatusPaid) {
+      return { payment, activated: false };
+    }
+    if (payment.status !== StatusPending) {
+      throw ErrPaymentNotPending;
+    }
+
+    const updated = this.repo.updatePaymentStatus(payment.id, StatusPaid, new Date());
+    if (!updated) {
+      throw ErrPaymentNotPending;
+    }
+
+    let activated = false;
+    if (this.premiumService && this.premiumService.isPremiumPlanKey(payment.planKey)) {
+      this.premiumService.activateFromPayment(this.repo.getPaymentByID(payment.id));
+      activated = true;
+    }
+
+    return { payment: this.repo.getPaymentByID(payment.id), activated };
   }
 
   getPayment(guildID, userID, reference) {

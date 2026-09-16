@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 
 const premiumColor = 0xf5c542;
 
@@ -51,10 +51,7 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand.setName('test-activate')
-        .setDescription('Activate a short Premium entitlement for testing (test mode only).')
-        .addIntegerOption(option =>
-          option.setName('duration').setDescription('Length in days (1-90)').setRequired(true)
-        )
+        .setDescription('Activate the default Monthly Premium entitlement for testing (test mode only).')
     )
     .addSubcommand(subcommand =>
       subcommand.setName('claim')
@@ -165,7 +162,7 @@ module.exports = {
 
         try {
           const { payment } = paymentsService.buyPremium(guildID, userID, planKey);
-          const { activated } = paymentsService.confirmPayment(payment.providerPaymentID);
+          const { activated } = paymentsService.confirmPayment(payment.providerPaymentID, guildID, userID);
 
           const lines = [
             `Plan: ${plan.name} (${formatPhp(plan.pricePhp)}, ${plan.durationDays} days)`,
@@ -212,20 +209,18 @@ module.exports = {
       }
 
       case 'test-activate': {
+        if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+          return interaction.reply({ content: 'Only members with Manage Server permission can activate test Premium.', ephemeral: true });
+        }
         if (!service.testMode) {
           return interaction.reply({ content: 'Test mode is not enabled on this instance.', ephemeral: true });
         }
 
-        const duration = interaction.options.getInteger('duration');
-        if (duration < 1 || duration > 90) {
-          return interaction.reply({ content: 'Duration must be between 1 and 90 days.', ephemeral: true });
-        }
-
         try {
-          const entitlement = service.testActivate(guildID, userID, duration);
+          const entitlement = service.testActivate(guildID, userID);
           const lines = [
             'Status: Active (test)',
-            'Plan: Premium',
+            'Plan: Monthly',
             `Active since: ${formatDate(new Date())}`,
             `Expires: ${formatDate(entitlement.expiresAt)}`
           ];

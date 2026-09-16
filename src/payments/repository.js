@@ -29,6 +29,15 @@ const {
   parseTime
 } = require('./model');
 
+const allowedStatusTransitions = {
+  [StatusPending]: new Set([StatusPaid, StatusFailed, StatusCancelled, StatusExpired]),
+  [StatusPaid]: new Set([StatusRefunded]),
+  [StatusFailed]: new Set([StatusPending]),
+  [StatusCancelled]: new Set(),
+  [StatusRefunded]: new Set(),
+  [StatusExpired]: new Set()
+};
+
 class PaymentsRepository {
   constructor(db) {
     this.db = db; // Database instance
@@ -52,6 +61,7 @@ class PaymentsRepository {
         enabled: true
       }))
     ];
+    const now = formatTime(new Date());
 
     for (const p of plans) {
       const existing = dbRef.get(
@@ -62,7 +72,12 @@ class PaymentsRepository {
       if (!existing) {
         dbRef.exec(
           `INSERT INTO payment_plans (plan_key, duration_days, price_minor, currency, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?)`,
-          [p.planKey, p.durationDays, p.priceMinor, p.currency, formatTime(new Date()), formatTime(new Date())]
+          [p.planKey, p.durationDays, p.priceMinor, p.currency, now, now]
+        );
+      } else {
+        dbRef.exec(
+          `UPDATE payment_plans SET duration_days = ?, price_minor = ?, currency = ?, enabled = ?, updated_at = ? WHERE plan_key = ?`,
+          [p.durationDays, p.priceMinor, p.currency, p.enabled ? 1 : 0, now, p.planKey]
         );
       }
     }
@@ -205,6 +220,19 @@ class PaymentsRepository {
     if (![StatusPending, StatusPaid, StatusFailed, StatusCancelled, StatusRefunded, StatusExpired].includes(status)) {
       return false;
     }
+    const current = this.db.db.prepare(
+      `SELECT status FROM payments WHERE id = ?`
+    ).get(paymentID);
+    if (!current) {
+      return false;
+    }
+    if (current.status === status) {
+      return true;
+    }
+    if (!allowedStatusTransitions[current.status]?.has(status)) {
+      return false;
+    }
+
     const ts = now.toISOString();
 
     const result = this.db.exec(

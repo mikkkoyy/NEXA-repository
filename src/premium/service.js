@@ -2,20 +2,20 @@ const { PremiumRepository } = require('./repository');
 const {
   StatusPaid,
   StatusPending,
-  CurrencyPHP,
   ErrPaymentNotPaid,
-  ErrPlanNotPurchasable
+  ErrPlanNotPurchasable,
+  ErrAmountMismatch,
+  ErrCurrencyMismatch
 } = require('../payments/model');
 const {
   economy,
   premiumPlanDefinitions,
-  PlanKeyPremium,
+  PlanKeyPremiumMonthly,
   MinorUnitsPerPhp
 } = require('../config/economy');
 const {
   ErrEconomyServiceRequired,
-  ErrTestModeDisabled,
-  ErrInvalidDuration
+  ErrTestModeDisabled
 } = require('./model');
 
 class PremiumService {
@@ -99,6 +99,20 @@ class PremiumService {
     };
   }
 
+  assertPaymentMatchesPlan(payment) {
+    const paymentPlan = this.paymentsRepo ? this.paymentsRepo.getPlanByKey(payment.planKey) : null;
+    if (!paymentPlan || !paymentPlan.enabled) {
+      throw new Error(ErrPlanNotPurchasable);
+    }
+    if (payment.amountMinor !== paymentPlan.priceMinor) {
+      throw new Error(ErrAmountMismatch);
+    }
+    if (payment.currency !== paymentPlan.currency) {
+      throw new Error(ErrCurrencyMismatch);
+    }
+    return paymentPlan;
+  }
+
   activateFromPayment(payment) {
     if (!payment) {
       throw new Error('payment not found');
@@ -110,8 +124,8 @@ class PremiumService {
       throw new Error(ErrPlanNotPurchasable);
     }
 
-    const paymentPlan = this.paymentsRepo ? this.paymentsRepo.getPlanByKey(payment.planKey) : null;
-    const durationDays = paymentPlan ? paymentPlan.durationDays : 30;
+    const paymentPlan = this.assertPaymentMatchesPlan(payment);
+    const durationDays = paymentPlan.durationDays;
 
     return this.repo.activateAfterPayment(
       payment.guildID,
@@ -124,28 +138,29 @@ class PremiumService {
     );
   }
 
-  testActivate(guildID, userID, durationDays) {
+  testActivate(guildID, userID) {
     if (!this.testMode) {
       throw ErrTestModeDisabled;
     }
     if (!guildID || !userID) {
       return null;
     }
-    if (durationDays < 1 || durationDays > 90) {
-      throw ErrInvalidDuration;
+
+    const planKey = PlanKeyPremiumMonthly;
+    const paymentPlan = this.paymentsRepo.getPlanByKey(planKey);
+    if (!paymentPlan || !paymentPlan.enabled) {
+      throw new Error(ErrPlanNotPurchasable);
     }
 
-    // Test activation still flows through the payment layer so the entitlement
-    // is always backed by a real payment record and idempotency rules.
     const providerPaymentID = `mock_test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const payment = this.paymentsRepo.createPayment(
-      guildID, userID, PlanKeyPremium, 'mock', providerPaymentID,
-      economy.premium.monthly * MinorUnitsPerPhp, CurrencyPHP, StatusPending
+      guildID, userID, planKey, 'mock', providerPaymentID,
+      paymentPlan.priceMinor, paymentPlan.currency, StatusPending
     );
     this.paymentsRepo.updatePaymentStatus(payment.id, StatusPaid, this.now());
 
     return this.repo.activateAfterPayment(
-      guildID, userID, PlanKeyPremium, durationDays,
+      guildID, userID, planKey, paymentPlan.durationDays,
       payment.id, payment.providerPaymentID, this.now()
     );
   }

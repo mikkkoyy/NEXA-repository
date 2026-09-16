@@ -45,6 +45,7 @@ class PremiumRepository {
         enabled: true
       }))
     ];
+    const now = formatTime(new Date());
 
     for (const p of plans) {
       const existing = dbRef.get(
@@ -55,7 +56,12 @@ class PremiumRepository {
       if (!existing) {
         dbRef.exec(
           `INSERT INTO premium_plans (plan_key, name, description, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-          [p.key, p.name, p.description, p.enabled ? 1 : 0, formatTime(new Date()), formatTime(new Date())]
+          [p.key, p.name, p.description, p.enabled ? 1 : 0, now, now]
+        );
+      } else {
+        dbRef.exec(
+          `UPDATE premium_plans SET name = ?, description = ?, enabled = ?, updated_at = ? WHERE plan_key = ?`,
+          [p.name, p.description, p.enabled ? 1 : 0, now, p.key]
         );
       }
     }
