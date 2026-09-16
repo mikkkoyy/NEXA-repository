@@ -1,21 +1,16 @@
+const { resolveCreator, resolveCreatorProfileId } = require('./resolver');
+
 class CreatorContentService {
   constructor(contentRepo) {
     this.repo = contentRepo;
   }
 
   hasCreatorProfile(guildId, userId) {
-    const creator = this.repo.db.get(
-      'SELECT id, guild_id, user_id, display_name, status, created_at, updated_at FROM creator_profiles WHERE guild_id = ? AND user_id = ?',
-      [guildId, userId]
-    );
-    return creator !== null;
+    return resolveCreator(this.repo.db, guildId, userId) !== null;
   }
 
   isCreatorActive(guildId, userId) {
-    const creator = this.repo.db.get(
-      'SELECT id, guild_id, user_id, display_name, status, created_at, updated_at FROM creator_profiles WHERE guild_id = ? AND user_id = ?',
-      [guildId, userId]
-    );
+    const creator = resolveCreator(this.repo.db, guildId, userId);
     return creator !== null && creator.status === 'active';
   }
 
@@ -28,12 +23,8 @@ class CreatorContentService {
       };
     }
 
-    // Get the creator profile ID
-    const creator = this.repo.db.get(
-      'SELECT id FROM creator_profiles WHERE guild_id = ? AND user_id = ?',
-      [guildId, userId]
-    );
-    const creatorId = creator.id;
+    // Translate the Discord user ID into the canonical creator profile ID
+    const creatorId = resolveCreatorProfileId(this.repo.db, guildId, userId);
 
     const createResult = this.repo.createContent(guildId, creatorId, title, description, contentType);
 
@@ -58,7 +49,11 @@ class CreatorContentService {
   }
 
   getCreatorContent(guildId, userId) {
-    const creatorContent = this.repo.getCreatorContent(guildId, userId);
+    const creatorId = resolveCreatorProfileId(this.repo.db, guildId, userId);
+    if (!creatorId) {
+      return { success: false, error: 'NOT_CREATOR', message: 'You are not registered as a creator.' };
+    }
+    const creatorContent = this.repo.getCreatorContent(guildId, creatorId);
     return { success: true, content: creatorContent };
   }
 
@@ -71,12 +66,8 @@ class CreatorContentService {
       };
     }
 
-    // Get the creator profile ID
-    const creator = this.repo.db.get(
-      'SELECT id FROM creator_profiles WHERE guild_id = ? AND user_id = ?',
-      [guildId, userId]
-    );
-    const creatorId = creator.id;
+    // Translate the Discord user ID into the canonical creator profile ID
+    const creatorId = resolveCreatorProfileId(this.repo.db, guildId, userId);
 
     const content = this.repo.getContent(guildId, contentId);
 
@@ -123,30 +114,10 @@ class CreatorContentService {
       };
     }
 
-    // Get the creator profile ID
-    const creator = this.repo.db.get(
-      'SELECT id FROM creator_profiles WHERE guild_id = ? AND user_id = ?',
-      [guildId, userId]
-    );
-    const creatorId = creator.id;
+    // Translate the Discord user ID into the canonical creator profile ID
+    const creatorId = resolveCreatorProfileId(this.repo.db, guildId, userId);
 
     const content = this.repo.getContent(guildId, contentId);
-
-    if (!content) {
-      return {
-        success: false,
-        error: 'CONTENT_NOT_FOUND',
-        message: 'Content not found.',
-      };
-    }
-
-    if (content.creatorId !== creatorId) {
-      return {
-        success: false,
-        error: 'NOT_CONTENT_OWNER',
-        message: 'You do not own this content.',
-      };
-    }
 
     if (!content) {
       return {
@@ -182,6 +153,53 @@ class CreatorContentService {
     };
   }
 
+  updateContent(guildId, userId, contentId, title, description) {
+    if (!this.isCreatorActive(guildId, userId)) {
+      return {
+        success: false,
+        error: 'NOT_ACTIVE_CREATOR',
+        message: 'Only active creators can edit content.',
+      };
+    }
+
+    // Translate the Discord user ID into the canonical creator profile ID
+    const creatorId = resolveCreatorProfileId(this.repo.db, guildId, userId);
+
+    const content = this.repo.getContent(guildId, contentId);
+
+    if (!content) {
+      return {
+        success: false,
+        error: 'CONTENT_NOT_FOUND',
+        message: 'Content not found.',
+      };
+    }
+
+    if (content.creatorId !== creatorId) {
+      return {
+        success: false,
+        error: 'NOT_CONTENT_OWNER',
+        message: 'You do not own this content.',
+      };
+    }
+
+    const updateResult = this.repo.updateContent(guildId, contentId, title, description);
+
+    if (updateResult.notFound) {
+      return {
+        success: false,
+        error: 'CONTENT_NOT_FOUND',
+        message: 'Content not found.',
+      };
+    }
+
+    return {
+      success: true,
+      content: updateResult.content,
+      message: 'Content updated successfully.',
+    };
+  }
+
   deleteContent(guildId, userId, contentId) {
     if (!this.isCreatorActive(guildId, userId)) {
       return {
@@ -191,12 +209,8 @@ class CreatorContentService {
       };
     }
 
-    // Get the creator profile ID
-    const creator = this.repo.db.get(
-      'SELECT id FROM creator_profiles WHERE guild_id = ? AND user_id = ?',
-      [guildId, userId]
-    );
-    const creatorId = creator.id;
+    // Translate the Discord user ID into the canonical creator profile ID
+    const creatorId = resolveCreatorProfileId(this.repo.db, guildId, userId);
 
     const content = this.repo.getContent(guildId, contentId);
 

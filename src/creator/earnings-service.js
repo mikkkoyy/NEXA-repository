@@ -1,6 +1,7 @@
 const { CreatorEarningsRepository } = require('../creator/earnings-repository');
 const { PaymentsRepository } = require('../payments/repository');
 const { StatusPaid, StatusPending, StatusFailed, StatusCancelled, StatusRefunded } = require('../payments/model');
+const { resolveCreator, resolveCreatorProfileId } = require('./resolver');
 
 class CreatorEarningsService {
   constructor(earningsRepo, paymentsRepo) {
@@ -9,7 +10,7 @@ class CreatorEarningsService {
   }
 
   async createEarning(guildId, userId, productId) {
-    // Step 1: Verify creator exists and is active
+    // Step 1: Verify creator exists and is active (canonical creator profile)
     const creator = this._getCreator(guildId, userId);
     if (!creator) {
       return { success: false, error: 'NOT_CREATOR', message: 'You must be an active creator.' };
@@ -21,7 +22,7 @@ class CreatorEarningsService {
       return { success: false, error: 'PRODUCT_NOT_FOUND', message: 'Marketplace product not found.' };
     }
 
-    if (product.creatorId !== userId) {
+    if (product.creatorId !== creator.id) {
       return { success: false, error: 'NOT_PRODUCT_OWNER', message: 'You do not own this product.' };
     }
 
@@ -30,13 +31,13 @@ class CreatorEarningsService {
       return { success: false, error: 'PRODUCT_NOT_LISTED', message: 'Product is not currently listed on the marketplace.' };
     }
 
-    // Step 4: Verify the purchase exists and is linked to this product
+    // Step 4: Verify the purchase exists, is paid, and is linked to this product
     const purchase = this._getPurchaseForProduct(guildId, productId);
     if (!purchase) {
-      return { success: false, error: 'PURCHASE_NOT_FOUND', message: 'No valid purchase found for this product.' };
+      return { success: false, error: 'PURCHASE_NOT_FOUND', message: 'No valid paid purchase found for this product.' };
     }
 
-    // Step 5: Verify the payment is confirmed/paid
+    // Step 5: Verify the payment is confirmed (paid) - pending payments MUST NOT create earnings
     const payment = this._getConfirmedPayment(purchase.paymentId);
     if (!payment) {
       return { success: false, error: 'PAYMENT_NOT_CONFIRMED', message: 'Payment has not been confirmed.' };
@@ -50,7 +51,7 @@ class CreatorEarningsService {
     // Step 7: Create the earning record (idempotent - unique constraint on purchase_id)
     const createResult = this.repo.createEarning(
       guildId,
-      userId,
+      creator.id,
       purchase.id,
       payment.id,
       productId,
@@ -75,11 +76,9 @@ class CreatorEarningsService {
 
   _getCreator(guildId, userId) {
     try {
-      const row = this.repo.db.db.prepare(
-        'SELECT id, guild_id, user_id, status FROM creator_profiles WHERE guild_id = ? AND user_id = ?'
-      ).get(guildId, userId);
-      if (!row || row.status !== 'active') return null;
-      return { id: row.id, guildId: row.guild_id, userId: row.userId };
+      const creator = resolveCreator(this.repo.db, guildId, userId);
+      if (!creator || creator.status !== 'active') return null;
+      return creator;
     } catch {
       return null;
     }
@@ -88,7 +87,7 @@ class CreatorEarningsService {
   _getProduct(guildId, productId) {
     try {
       const row = this.repo.db.db.prepare(
-        'SELECT id, guild_id, creator_id, content_id, listing_status, created_at, updated_at FROM marketplace_products WHERE guild_id = ? AND id = ?'
+        'SELECT id, guild_id, creator_id, content_id, listing_status, created_at, updated_at FROM creator_marketplace WHERE guild_id = ? AND id = ?'
       ).get(guildId, productId);
       if (!row) return null;
       return { id: row.id, guildId: row.guild_id, creatorId: row.creator_id, contentId: row.content_id, listingStatus: row.listing_status };
@@ -129,8 +128,8 @@ class CreatorEarningsService {
 
       if (!row) return null;
 
-      // Only allow earnings from paid or pending payments that can be confirmed
-      if (row.status !== StatusPaid && row.status !== StatusPending) return null;
+      // Only a properly confirmed (paid) payment may create finalized earnings.
+      if (row.status !== StatusPaid) return null;
 
       return {
         id: row.id,
@@ -145,11 +144,11 @@ class CreatorEarningsService {
   }
 
   getCreatorEarnings(guildId, userId) {
-    // Verify creator owns this
+    // Verify creator owns this (resolve Discord ID into canonical profile ID)
     const creator = this._getCreator(guildId, userId);
     if (!creator) return { success: false, error: 'NOT_CREATOR', message: 'You are not a creator.' };
 
-    const earnings = this.repo.getCreatorEarnings(guildId, userId);
+    const earnings = this.repo.getCreatorEarnings(guildId, creator.id);
 
     const grossTotal = earnings.reduce((sum, e) => sum + e.grossAmountMinor, 0);
     const feeTotal = earnings.reduce((sum, e) => sum + e.platformFeeMinor, 0);

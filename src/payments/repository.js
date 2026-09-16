@@ -44,12 +44,13 @@ class PaymentsRepository {
     ];
 
     for (const p of plans) {
-      const existing = dbRef.db.prepare(
-        `SELECT id FROM payment_plans WHERE plan_key = ?`
-      ).get(p.planKey);
+      const existing = dbRef.get(
+        `SELECT plan_key FROM payment_plans WHERE plan_key = ?`,
+        [p.planKey]
+      );
 
       if (!existing) {
-        dbRef.db.exec(
+        dbRef.exec(
           `INSERT INTO payment_plans (plan_key, duration_days, price_minor, currency, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?)`,
           [p.planKey, p.durationDays, p.priceMinor, p.currency, formatTime(new Date()), formatTime(new Date())]
         );

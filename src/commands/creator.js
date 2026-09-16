@@ -214,7 +214,8 @@ module.exports = {
       return interaction.reply({ content: 'Content not found.', ephemeral: true });
     }
 
-    if (content.creatorId !== userId) {
+    const creator = service.getCreator(guildId, userId);
+    if (!creator || content.creatorId !== creator.id) {
       return interaction.reply({ content: 'You do not own this content.', ephemeral: true });
     }
 
@@ -397,7 +398,8 @@ module.exports = {
       return interaction.reply({ content: 'Product not found.', ephemeral: true });
     }
 
-    if (product.creatorId !== userId) {
+    const creator = service.getCreator(guildId, userId);
+    if (!creator || product.creatorId !== creator.id) {
       return interaction.reply({ content: 'You do not own this product.', ephemeral: true });
     }
 

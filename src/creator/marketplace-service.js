@@ -1,4 +1,5 @@
 const { CreatorMarketplaceRepository } = require('../creator/marketplace-repository');
+const { resolveCreator, resolveCreatorProfileId } = require('./resolver');
 
 class CreatorMarketplaceService {
   constructor(marketplaceRepo) {
@@ -7,10 +8,7 @@ class CreatorMarketplaceService {
 
   async createProduct(guildId, userId, contentId, priceMinor, currency) {
     // Check creator exists and is active via the repo's database
-    const creator = this.repo.db.get(
-      'SELECT id, guild_id, user_id, display_name, status, created_at, updated_at FROM creator_profiles WHERE guild_id = ? AND user_id = ?',
-      [guildId, userId]
-    );
+    const creator = resolveCreator(this.repo.db, guildId, userId);
 
     if (!creator) {
       return {
@@ -59,7 +57,7 @@ class CreatorMarketplaceService {
       };
     }
 
-    const createResult = this.repo.createCreatorProduct(guildId, userId, contentId, priceMinor, currency);
+    const createResult = this.repo.createCreatorProduct(guildId, creator.id, contentId, priceMinor, currency);
 
     if (createResult.duplicate) {
       return {
@@ -82,7 +80,16 @@ class CreatorMarketplaceService {
   }
 
   listProduct(guildId, productId, userId) {
-    const result = this.repo.listCreatorProduct(guildId, productId, userId);
+    const creatorId = resolveCreatorProfileId(this.repo.db, guildId, userId);
+    if (!creatorId) {
+      return {
+        success: false,
+        error: 'NOT_CREATOR',
+        message: 'You must be an active creator to manage products.',
+      };
+    }
+
+    const result = this.repo.listCreatorProduct(guildId, productId, creatorId);
 
     if (result.notFound) {
       return {
@@ -116,7 +123,16 @@ class CreatorMarketplaceService {
   }
 
   unlistProduct(guildId, productId, userId) {
-    const result = this.repo.unlistCreatorProduct(guildId, productId, userId);
+    const creatorId = resolveCreatorProfileId(this.repo.db, guildId, userId);
+    if (!creatorId) {
+      return {
+        success: false,
+        error: 'NOT_CREATOR',
+        message: 'You must be an active creator to manage products.',
+      };
+    }
+
+    const result = this.repo.unlistCreatorProduct(guildId, productId, creatorId);
 
     if (result.notFound) {
       return {
@@ -150,7 +166,11 @@ class CreatorMarketplaceService {
   }
 
   getCreatorProducts(guildId, userId) {
-    const products = this.repo.getCreatorProducts(guildId, userId);
+    const creatorId = resolveCreatorProfileId(this.repo.db, guildId, userId);
+    if (!creatorId) {
+      return { success: false, error: 'NOT_CREATOR', products: [] };
+    }
+    const products = this.repo.getCreatorProducts(guildId, creatorId);
     return { success: true, products };
   }
 }

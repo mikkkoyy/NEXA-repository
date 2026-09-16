@@ -26,30 +26,36 @@ class CreatorEarningsRepository {
     `);
   }
 
-  createEarning(guildId, creatorId, purchaseId, paymentId, productId, grossAmountMinor, currency) {
+  createEarning(guildId, creatorId, purchaseId, paymentId, productId, grossAmountMinor, currency, status = 'paid') {
     const platformFeeMinor = Math.floor(grossAmountMinor * 20 / 100);
     const netAmountMinor = grossAmountMinor - platformFeeMinor;
     const now = new Date().toISOString();
 
+    // Idempotency: the same purchase (or the same confirmed payment) must never
+    // produce a second earning row.
     const existing = this.db.get(
-      'SELECT id FROM creator_earnings WHERE purchase_id = ?',
-      [purchaseId]
+      'SELECT id FROM creator_earnings WHERE purchase_id = ? OR payment_id = ?',
+      [purchaseId, paymentId]
     );
 
     if (existing) {
-      return { duplicate: true, earning: this.mapRow(existing) };
+      const row = this.db.get(
+        'SELECT id, guild_id, creator_id, purchase_id, payment_id, product_id, gross_amount_minor, platform_fee_minor, net_amount_minor, currency, status, created_at, updated_at FROM creator_earnings WHERE purchase_id = ? OR payment_id = ?',
+        [purchaseId, paymentId]
+      );
+      return { duplicate: true, earning: this.mapRow(row) };
     }
 
     this.db.exec(
       `INSERT INTO creator_earnings
         (guild_id, creator_id, purchase_id, payment_id, product_id, gross_amount_minor, platform_fee_minor, net_amount_minor, currency, status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [guildId, creatorId, purchaseId, paymentId, productId, grossAmountMinor, platformFeeMinor, netAmountMinor, currency, 'pending', now, now]
+      [guildId, creatorId, purchaseId, paymentId, productId, grossAmountMinor, platformFeeMinor, netAmountMinor, currency, status, now, now]
     );
 
     const row = this.db.get(
-      'SELECT id, guild_id, creator_id, purchase_id, payment_id, product_id, gross_amount_minor, platform_fee_minor, net_amount_minor, currency, status, created_at, updated_at FROM creator_earnings WHERE purchase_id = ?',
-      [purchaseId]
+      'SELECT id, guild_id, creator_id, purchase_id, payment_id, product_id, gross_amount_minor, platform_fee_minor, net_amount_minor, currency, status, created_at, updated_at FROM creator_earnings WHERE purchase_id = ? OR payment_id = ?',
+      [purchaseId, paymentId]
     );
 
     return { duplicate: false, earning: this.mapRow(row) };

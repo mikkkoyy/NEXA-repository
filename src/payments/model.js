@@ -1,4 +1,5 @@
 // Payments model and constants.
+const { premiumMonthlyMinor } = require('../config/economy');
 const CurrencyPHP = 'PHP';
 
 const StatusPending = 'pending';
@@ -7,7 +8,8 @@ const StatusFailed = 'failed';
 const StatusCancelled = 'cancelled';
 const StatusRefunded = 'refunded';
 
-const DefaultPricePremiumMinor = 5000; // PHP 50.00
+// Premium pricing is defined centrally in src/config/economy.js.
+const DefaultPricePremiumMinor = premiumMonthlyMinor(); // PHP 99.00
 const DefaultPremiumDurationDays = 30;
 const ProductPlanKey = 'premium';
 const DefaultPlatformFeePercent = 20; // 20% platform fee on creator sales
@@ -44,6 +46,14 @@ function createCheckout(provider, providerPaymentID, status, url) {
   return { provider, providerPaymentID, status, url };
 }
 
+function formatTime(t) {
+  return t.toISOString();
+}
+
+function parseTime(raw) {
+  return new Date(raw);
+}
+
 module.exports = {
   CurrencyPHP,
   StatusPending,
@@ -71,5 +81,7 @@ module.exports = {
   ErrInvalidAmount,
   createPayment,
   createCheckoutRequest,
-  createCheckout
+  createCheckout,
+  formatTime,
+  parseTime
 };

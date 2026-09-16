@@ -28,7 +28,7 @@ class CreatorContentRepository {
     const now = new Date().toISOString();
 
     const existing = this.db.get(
-      'SELECT id FROM creator_content WHERE guild_id = ? AND creator_id = ? AND title = ?',
+      'SELECT id, guild_id, creator_id, title, description, content_type, status, created_at, updated_at, published_at FROM creator_content WHERE guild_id = ? AND creator_id = ? AND title = ?',
       [guildId, creatorId, title]
     );
 
@@ -40,7 +40,7 @@ class CreatorContentRepository {
       `INSERT INTO creator_content
         (guild_id, creator_id, title, description, content_type, status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [guildId, creatorId, title, description, contentType, 'created_at', now, now]
+      [guildId, creatorId, title, description, contentType, 'draft', now, now]
     );
 
     const row = this.db.get(

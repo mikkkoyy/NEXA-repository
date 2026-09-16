@@ -27,7 +27,7 @@ class CreatorMarketplaceRepository {
     const now = new Date().toISOString();
 
     const existing = this.db.get(
-      'SELECT id FROM creator_marketplace WHERE guild_id = ? AND creator_id = ? AND content_id = ?',
+      'SELECT id, guild_id, creator_id, content_id, price_minor, currency, listing_status, created_at, updated_at FROM creator_marketplace WHERE guild_id = ? AND creator_id = ? AND content_id = ?',
       [guildId, creatorId, contentId]
     );
 
@@ -69,7 +69,7 @@ class CreatorMarketplaceRepository {
     return rows.map(row => this.mapRow(row));
   }
 
-  listCreatorProduct(guildId, productId, userId) {
+  listCreatorProduct(guildId, productId, creatorId) {
     const product = this.db.get(
       'SELECT id, guild_id, creator_id, content_id, price_minor, currency, listing_status, created_at, updated_at FROM creator_marketplace WHERE guild_id = ? AND id = ?',
       [guildId, productId]
@@ -77,12 +77,12 @@ class CreatorMarketplaceRepository {
 
     if (!product) return { notFound: true };
 
-    if (product.listing_status !== 'unlisted') {
-      return { alreadyListed: true, product: this.mapRow(product) };
+    if (product.creator_id !== creatorId) {
+      return { notOwner: true };
     }
 
-    if (product.creator_id !== userId) {
-      return { notOwner: true };
+    if (product.listing_status !== 'unlisted') {
+      return { alreadyListed: true, product: this.mapRow(product) };
     }
 
     this.db.exec(
@@ -98,7 +98,7 @@ class CreatorMarketplaceRepository {
     return { notFound: false, product: this.mapRow(row) };
   }
 
-  unlistCreatorProduct(guildId, productId, userId) {
+  unlistCreatorProduct(guildId, productId, creatorId) {
     const product = this.db.get(
       'SELECT id, guild_id, creator_id, content_id, price_minor, currency, listing_status, created_at, updated_at FROM creator_marketplace WHERE guild_id = ? AND id = ?',
       [guildId, productId]
@@ -106,7 +106,7 @@ class CreatorMarketplaceRepository {
 
     if (!product) return { notFound: true };
 
-    if (product.creator_id !== userId) {
+    if (product.creator_id !== creatorId) {
       return { notOwner: true };
     }
 

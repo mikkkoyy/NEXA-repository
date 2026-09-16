@@ -1,4 +1,17 @@
 const { PaymentsRepository } = require('./repository');
+const {
+  CurrencyPHP,
+  StatusPending,
+  StatusPaid,
+  ErrGuildRequired,
+  ErrUserRequired,
+  ErrPlanNotPurchasable,
+  ErrPaymentProviderUnavailable,
+  ErrPaymentNotFound,
+  ErrReferenceRequired,
+  DefaultPricePremiumMinor,
+  createCheckout
+} = require('./model');
 
 class PaymentsService {
   constructor(paymentsRepo, testMode) {
