@@ -1,4 +1,5 @@
 const Database = require('../database/database');
+const { premiumPlanDefinitions } = require('../config/economy');
 const {
   CurrencyPHP,
   StatusPending,
@@ -6,6 +7,7 @@ const {
   StatusFailed,
   StatusCancelled,
   StatusRefunded,
+  StatusExpired,
   DefaultPricePremiumMinor,
   DefaultPremiumDurationDays,
   ProductPlanKey,
@@ -33,6 +35,7 @@ class PaymentsRepository {
   }
 
   ensurePlans(dbRef) {
+    const planDefs = premiumPlanDefinitions();
     const plans = [
       {
         planKey: ProductPlanKey,
@@ -40,7 +43,14 @@ class PaymentsRepository {
         priceMinor: DefaultPricePremiumMinor,
         currency: CurrencyPHP,
         enabled: true
-      }
+      },
+      ...planDefs.map(p => ({
+        planKey: p.key,
+        durationDays: p.durationDays,
+        priceMinor: p.pricePhp * 100,
+        currency: CurrencyPHP,
+        enabled: true
+      }))
     ];
 
     for (const p of plans) {
@@ -56,6 +66,27 @@ class PaymentsRepository {
         );
       }
     }
+  }
+
+  getPlanByKey(planKey) {
+    if (!planKey) {
+      return null;
+    }
+    const row = this.db.db.prepare(
+      `SELECT plan_key, duration_days, price_minor, currency, enabled, created_at, updated_at FROM payment_plans WHERE plan_key = ?`
+    ).get(planKey);
+
+    if (!row) return null;
+
+    return {
+      planKey: row.plan_key,
+      durationDays: row.duration_days,
+      priceMinor: row.price_minor,
+      currency: row.currency,
+      enabled: row.enabled === 1,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
   }
 
   createPayment(guildID, userID, planKey, provider, providerPaymentID, amountMinor, currency, status) {
@@ -117,13 +148,13 @@ class PaymentsRepository {
     };
   }
 
-  getPaymentByReference(guildID, provider, reference) {
+  getPaymentByReference(provider, reference) {
     if (!reference) {
       return null;
     }
     const row = this.db.db.prepare(
       `SELECT id, guild_id, user_id, plan_key, provider, provider_payment_id, amount_minor, currency, status, created_at, updated_at, completed_at FROM payments WHERE provider = ? AND provider_payment_id = ?`
-    ).get(guildID, reference);
+    ).get(provider, reference);
 
     if (!row) return null;
 
@@ -171,7 +202,7 @@ class PaymentsRepository {
     if (!paymentID) {
       return false;
     }
-    if (![StatusPending, StatusPaid, StatusFailed, StatusCancelled, StatusRefunded].includes(status)) {
+    if (![StatusPending, StatusPaid, StatusFailed, StatusCancelled, StatusRefunded, StatusExpired].includes(status)) {
       return false;
     }
     const ts = now.toISOString();

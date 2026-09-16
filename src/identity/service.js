@@ -1,4 +1,5 @@
 const { ProfileRepository, levelForXP, xpForLevel } = require('./repository');
+const { economy } = require('../config/economy');
 
 const MessageXP = 2;
 const MessageCooldown = 60 * 1000;
@@ -12,10 +13,19 @@ class IdentityService {
     this.now = () => new Date();
     this.lastRewards = new Map();
     this.mu = { locked: false, queue: [] };
+    this.premiumService = null;
   }
 
   setNow(fn) {
     this.now = fn;
+  }
+
+  setPremiumService(premiumService) {
+    this.premiumService = premiumService;
+  }
+
+  isPremium(guildID, userID) {
+    return !!(this.premiumService && this.premiumService.isPremium(guildID, userID));
   }
 
   profile(ctx, guildID, userID, username, displayName) {
@@ -24,7 +34,10 @@ class IdentityService {
   }
 
   async recordMessage(ctx, guildID, userID, username, displayName) {
-    const reward = this.takeReward(ctx, guildID, userID);
+    let reward = this.takeReward(ctx, guildID, userID);
+    if (reward > 0 && this.isPremium(guildID, userID)) {
+      reward = Math.ceil(reward * economy.premiumBenefits.xpMultiplier);
+    }
     this.repo.recordActivity(ctx, guildID, userID, username, displayName, reward, this.now());
   }
 
@@ -53,6 +66,9 @@ class IdentityService {
   }
 
   addReputation(ctx, guildID, userID, delta) {
+    if (delta > 0 && this.isPremium(guildID, userID)) {
+      delta = Math.ceil(delta * economy.premiumBenefits.reputationMultiplier);
+    }
     const ts = this.now().toISOString();
     const stmt = this.repo.db.db.prepare(
       'UPDATE member_profiles SET reputation = reputation + ?, updated_at = ? WHERE guild_id = ? AND user_id = ?'

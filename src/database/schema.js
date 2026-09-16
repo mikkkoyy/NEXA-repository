@@ -206,6 +206,22 @@ const schemaStatements = [
     updated_at TEXT NOT NULL,
     FOREIGN KEY (plan_key) REFERENCES premium_plans(plan_key)
   )`,
+  `CREATE TABLE IF NOT EXISTS user_premium (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    plan_key TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    expires_at TEXT,
+    payment_id INTEGER,
+    payment_reference TEXT,
+    economy_claim_date TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(guild_id, user_id),
+    FOREIGN KEY (plan_key) REFERENCES premium_plans(plan_key)
+  )`,
   `CREATE TABLE IF NOT EXISTS payment_plans (
     plan_key TEXT PRIMARY KEY,
     duration_days INTEGER NOT NULL,
@@ -309,7 +325,9 @@ const schemaStatements = [
   `CREATE INDEX IF NOT EXISTS idx_creator_marketplace_guild ON creator_marketplace(guild_id)`,
   `CREATE INDEX IF NOT EXISTS idx_creator_earnings_creator ON creator_earnings(creator_id)`,
   `CREATE INDEX IF NOT EXISTS idx_creator_earnings_purchase ON creator_earnings(purchase_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_creator_earnings_guild ON creator_earnings(guild_id)`
+  `CREATE INDEX IF NOT EXISTS idx_creator_earnings_guild ON creator_earnings(guild_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_user_premium_payment ON user_premium(payment_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_user_premium_user ON user_premium(guild_id, user_id)`
 ];
 
 function migrate(db) {

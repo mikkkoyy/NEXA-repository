@@ -1,6 +1,5 @@
 const { PaymentsRepository } = require('./repository');
 const {
-  CurrencyPHP,
   StatusPending,
   StatusPaid,
   ErrGuildRequired,
@@ -9,7 +8,6 @@ const {
   ErrPaymentProviderUnavailable,
   ErrPaymentNotFound,
   ErrReferenceRequired,
-  DefaultPricePremiumMinor,
   createCheckout
 } = require('./model');
 
@@ -17,10 +15,19 @@ class PaymentsService {
   constructor(paymentsRepo, testMode) {
     this.repo = paymentsRepo;
     this.testMode = testMode || false;
+    this.premiumService = null;
   }
 
   setTestMode(enabled) {
     this.testMode = enabled;
+  }
+
+  setPremiumService(premiumService) {
+    this.premiumService = premiumService;
+  }
+
+  getPlan(planKey) {
+    return this.repo.getPlanByKey(planKey);
   }
 
   buyPremium(guildID, userID, planKey) {
@@ -31,51 +38,66 @@ class PaymentsService {
       throw new Error(ErrUserRequired);
     }
 
-    // Get the product/plan
-    const product = this.repo.getPaymentByID(1); // Simplified - would look up by plan key
-    if (!product) {
+    const plan = this.repo.getPlanByKey(planKey);
+    if (!plan || !plan.enabled) {
       throw new Error(ErrPlanNotPurchasable);
     }
 
-    // In test mode with mock provider, create a mock checkout
     if (this.testMode) {
       const providerPaymentID = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const payment = this.repo.createPayment(
         guildID, userID, planKey, 'mock', providerPaymentID,
-        product ? product.priceMinor : DefaultPricePremiumMinor,
-        product ? product.currency : CurrencyPHP,
-        StatusPending
+        plan.priceMinor, plan.currency, StatusPending
       );
 
-      // Create a mock checkout
       const checkout = createCheckout('mock', providerPaymentID, StatusPending, null);
 
       return { checkout, payment };
     }
 
-    // In production, would require actual provider
     throw new Error(ErrPaymentProviderUnavailable);
   }
 
   confirmPayment(reference) {
     if (!reference) {
-      throw new ErrReferenceRequired;
+      throw new Error(ErrReferenceRequired);
     }
 
-    const payment = this.repo.getPaymentByReference(null, 'mock', reference);
+    const payment = this.repo.getPaymentByReference('mock', reference);
     if (!payment) {
-      throw new ErrPaymentNotFound;
+      throw new Error(ErrPaymentNotFound);
     }
 
-    // In test mode, simulate payment verification
     if (this.testMode) {
-      // Simulate successful payment
+      const wasPaid = payment.status === StatusPaid;
       this.repo.updatePaymentStatus(payment.id, StatusPaid, new Date());
-      return { payment, activated: true };
+
+      // Activate premium only when the payment transitions to paid, so an
+      // already-processed payment can never grant premium twice.
+      let activated = false;
+      if (!wasPaid && this.premiumService && this.premiumService.isPremiumPlanKey(payment.planKey)) {
+        this.premiumService.activateFromPayment(this.repo.getPaymentByID(payment.id));
+        activated = true;
+      }
+
+      return { payment: this.repo.getPaymentByID(payment.id), activated };
     }
 
-    // In production, would verify with provider
-    throw new ErrPaymentProviderUnavailable;
+    throw new Error(ErrPaymentProviderUnavailable);
+  }
+
+  getPayment(guildID, userID, reference) {
+    if (!reference) {
+      return null;
+    }
+    const payment = this.repo.getPaymentByReference('mock', reference);
+    if (!payment) {
+      return null;
+    }
+    if (payment.guildID !== guildID || payment.userID !== userID) {
+      return null;
+    }
+    return payment;
   }
 
   testModeEnabled() {

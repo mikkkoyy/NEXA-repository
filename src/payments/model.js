@@ -7,11 +7,15 @@ const StatusPaid = 'paid';
 const StatusFailed = 'failed';
 const StatusCancelled = 'cancelled';
 const StatusRefunded = 'refunded';
+const StatusExpired = 'expired';
 
 // Premium pricing is defined centrally in src/config/economy.js.
-const DefaultPricePremiumMinor = premiumMonthlyMinor(); // PHP 99.00
+const DefaultPricePremiumMinor = premiumMonthlyMinor(); // PHP 49.00
 const DefaultPremiumDurationDays = 30;
 const ProductPlanKey = 'premium';
+const PlanKeyPremiumMonthly = 'premium_monthly';
+const PlanKeyPremiumQuarterly = 'premium_quarterly';
+const PlanKeyPremiumYearly = 'premium_yearly';
 const DefaultPlatformFeePercent = 20; // 20% platform fee on creator sales
 
 const ErrNoPaymentProvider = new Error('no payment provider configured');
@@ -20,6 +24,7 @@ const ErrPaymentProviderUnavailable = new Error('configured payment provider is 
 const ErrPlanNotPurchasable = new Error('plan is not purchasable');
 const ErrPaymentNotFound = new Error('payment not found');
 const ErrPaymentNotPending = new Error('payment is not pending');
+const ErrPaymentNotPaid = new Error('payment is not confirmed as paid');
 const ErrAmountMismatch = new Error('payment amount does not match the configured price');
 const ErrCurrencyMismatch = new Error('payment currency does not match the configured currency');
 const ErrGuildRequired = new Error('guild id is required');
@@ -61,9 +66,13 @@ module.exports = {
   StatusFailed,
   StatusCancelled,
   StatusRefunded,
+  StatusExpired,
   DefaultPricePremiumMinor,
   DefaultPremiumDurationDays,
   ProductPlanKey,
+  PlanKeyPremiumMonthly,
+  PlanKeyPremiumQuarterly,
+  PlanKeyPremiumYearly,
   DefaultPlatformFeePercent,
   ErrNoPaymentProvider,
   ErrPaymentProviderUnknown,
@@ -71,6 +80,7 @@ module.exports = {
   ErrPlanNotPurchasable,
   ErrPaymentNotFound,
   ErrPaymentNotPending,
+  ErrPaymentNotPaid,
   ErrAmountMismatch,
   ErrCurrencyMismatch,
   ErrGuildRequired,

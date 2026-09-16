@@ -77,6 +77,22 @@ npm test
 - Transaction ledger
 - `/balance` command
 
+### 007 Premium Membership
+- User-scoped Premium memberships, stored in the `user_premium` table
+- Three plans (prices centralized in `src/config/economy.js`):
+  - **Monthly** — ₱49 / 30 days
+  - **Quarterly** — ₱129 / 90 days
+  - **Yearly** — ₱399 / 365 days
+- Entitlement is expiration-driven: a membership is active while `expires_at` is in the future (checked on every read, no background timers)
+- Renewal while active extends the entitlement from its current expiry date; renewal after expiry starts from now
+- Each payment can grant Premium exactly once (idempotent activation); activation always derives plan and duration from the server-side plan catalog, never from client-supplied values
+- Benefits:
+  - **1.25× message XP** (XP = base × 1.25, rounded up)
+  - **1.25× reputation gain**
+  - **Daily Premium claim** — once per UTC day, `+100` NEXA Coins via `/premium claim`
+- Commands: `/premium` with subcommands `status`, `plans`, `buy`, `payment-status`, `test-activate`, `claim`
+- Payment lifecycle: `pending → paid → entitlement activated`. **Real-money payment processing is NOT connected** — set `NEXA_PAYMENT_TEST_MODE=true` to allow test activations only.
+
 ## Quaxly Deployment
 
 **Runtime:** Node.js

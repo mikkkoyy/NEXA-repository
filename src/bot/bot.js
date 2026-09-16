@@ -10,6 +10,8 @@ const { AchievementRepository } = require('../achievements/repository');
 const { EconomyRepository } = require('../economy/repository');
 const { WorldRepository } = require('../world/repository');
 const { PaymentsRepository } = require('../payments/repository');
+const { PremiumRepository } = require('../premium/repository');
+const { PremiumService } = require('../premium/service');
 const { AnalyticsRepository } = require('../analytics/repository');
 const { CreatorMarketplaceRepository } = require('../creator/marketplace-repository');
 const { CreatorMarketplaceService } = require('../creator/marketplace-service');
@@ -88,6 +90,7 @@ function setupRepositories() {
   const creatorContentRepo = new CreatorContentRepository(database);
   const creatorMarketplaceRepo = new CreatorMarketplaceRepository(database);
   const creatorEarningsRepo = new CreatorEarningsRepository(database);
+  const premiumRepo = new PremiumRepository(database);
 
   client.profileRepository = profileRepo;
   client.questRepository = questRepo;
@@ -96,17 +99,35 @@ function setupRepositories() {
   client.economyRepository = economyRepo;
   client.worldRepository = worldRepo;
   client.paymentsRepository = paymentsRepo;
+  client.premiumRepository = premiumRepo;
   client.analyticsRepository = analyticsRepo;
   client.creatorRepository = creatorRepo;
   client.creatorContentRepository = creatorContentRepo;
   client.creatorMarketplaceRepository = creatorMarketplaceRepo;
   client.creatorEarningsRepository = creatorEarningsRepo;
 
-  return { profileRepo, questRepo, collectibleRepo, achievementRepo, economyRepo, worldRepo, paymentsRepo, analyticsRepo, creatorRepo, creatorContentRepo, creatorMarketplaceRepo, creatorEarningsRepo };
+  // Seed the payment and premium plan catalogs from src/config/economy.js.
+  premiumRepo.ensurePlans(database);
+  paymentsRepo.ensurePlans(database);
+
+  return { profileRepo, questRepo, collectibleRepo, achievementRepo, economyRepo, worldRepo, paymentsRepo, analyticsRepo, creatorRepo, creatorContentRepo, creatorMarketplaceRepo, creatorEarningsRepo, premiumRepo };
 }
 
-function setupServices({ profileRepo, questRepo, collectibleRepo, achievementRepo, economyRepo, worldRepo, paymentsRepo, creatorRepo, creatorContentRepo, creatorMarketplaceRepo, creatorEarningsRepo }) {
+function setupServices({ profileRepo, questRepo, collectibleRepo, achievementRepo, economyRepo, worldRepo, paymentsRepo, creatorRepo, creatorContentRepo, creatorMarketplaceRepo, creatorEarningsRepo, premiumRepo }) {
+  const testMode = process.env.NEXA_PAYMENT_TEST_MODE === 'true';
+
+  const economyService = new EconomyService(economyRepo);
+  client.economyService = economyService;
+
+  const premiumService = new PremiumService(premiumRepo, paymentsRepo, economyService, testMode);
+  client.premiumService = premiumService;
+
+  const paymentsService = new PaymentsService(paymentsRepo, testMode);
+  paymentsService.setPremiumService(premiumService);
+  client.paymentsService = paymentsService;
+
   const identityService = new IdentityService(profileRepo);
+  identityService.setPremiumService(premiumService);
   client.identityService = identityService;
 
   const questService = new QuestService(questRepo, profileRepo, collectibleRepo);
@@ -115,14 +136,8 @@ function setupServices({ profileRepo, questRepo, collectibleRepo, achievementRep
   const achievementService = new AchievementService(achievementRepo, profileRepo);
   client.achievementService = achievementService;
 
-  const economyService = new EconomyService(economyRepo);
-  client.economyService = economyService;
-
   const worldService = new WorldService(worldRepo);
   client.worldService = worldService;
-
-  const paymentsService = new PaymentsService(paymentsRepo, process.env.NEXA_PAYMENT_TEST_MODE === 'true');
-  client.paymentsService = paymentsService;
 
   const creatorService = new CreatorService(creatorRepo);
   client.creatorService = creatorService;

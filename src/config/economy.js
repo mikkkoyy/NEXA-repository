@@ -23,11 +23,26 @@ const economy = {
 
   premium: {
     currency: 'PHP',
-    monthly: 99
+    monthly: 49,
+    quarterly: 129,
+    yearly: 399
+  },
+
+  premiumPlans: {
+    monthly: { durationDays: 30 },
+    quarterly: { durationDays: 90 },
+    yearly: { durationDays: 365 }
+  },
+
+  premiumBenefits: {
+    xpMultiplier: 1.25,
+    reputationMultiplier: 1.25,
+    economyDailyBonus: 100,
+    economyClaimSource: 'premium_daily'
   }
 };
 
-// Payment plans store prices in minor units. Premium.monthly is expressed in
+// Payment plans store prices in minor units. Premium prices are expressed in
 // whole PHP units, so convert to minor units when storing.
 const MinorUnitsPerPhp = 100;
 
@@ -35,8 +50,53 @@ function premiumMonthlyMinor() {
   return economy.premium.monthly * MinorUnitsPerPhp;
 }
 
+function premiumQuarterlyMinor() {
+  return economy.premium.quarterly * MinorUnitsPerPhp;
+}
+
+function premiumYearlyMinor() {
+  return economy.premium.yearly * MinorUnitsPerPhp;
+}
+
+const PlanKeyPremiumMonthly = 'premium_monthly';
+const PlanKeyPremiumQuarterly = 'premium_quarterly';
+const PlanKeyPremiumYearly = 'premium_yearly';
+
+// Canonical premium plan definitions shared by the payments and premium modules.
+function premiumPlanDefinitions() {
+  return [
+    {
+      key: PlanKeyPremiumMonthly,
+      name: 'Monthly',
+      description: 'NEXA Premium for 30 days',
+      pricePhp: economy.premium.monthly,
+      durationDays: economy.premiumPlans.monthly.durationDays
+    },
+    {
+      key: PlanKeyPremiumQuarterly,
+      name: 'Quarterly',
+      description: 'NEXA Premium for 90 days',
+      pricePhp: economy.premium.quarterly,
+      durationDays: economy.premiumPlans.quarterly.durationDays
+    },
+    {
+      key: PlanKeyPremiumYearly,
+      name: 'Yearly',
+      description: 'NEXA Premium for 365 days',
+      pricePhp: economy.premium.yearly,
+      durationDays: economy.premiumPlans.yearly.durationDays
+    }
+  ];
+}
+
 module.exports = {
   economy,
   MinorUnitsPerPhp,
-  premiumMonthlyMinor
+  premiumMonthlyMinor,
+  premiumQuarterlyMinor,
+  premiumYearlyMinor,
+  PlanKeyPremiumMonthly,
+  PlanKeyPremiumQuarterly,
+  PlanKeyPremiumYearly,
+  premiumPlanDefinitions
 };
