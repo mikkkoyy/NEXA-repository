@@ -280,8 +280,9 @@ function initializeApplication() {
   console.log('[NEXA] Initializing application...');
 
   Promise.resolve().then(async () => {
+    let restoreResult;
     try {
-      let restoreResult = await restoreSnapshot();
+      restoreResult = await restoreSnapshot();
     } catch (err) {
       console.error('[Database] Snapshot restore error:', err.message);
     }
