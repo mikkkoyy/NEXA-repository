@@ -1,0 +1,21 @@
+const fs = require('fs');
+const { execSync } = require('child_process');
+const dir = 'D:/FILES/project/NEXA_nodejs';
+
+console.log('HEAD:', execSync('git rev-parse HEAD', {cwd: dir, encoding:'utf8'}).trim());
+console.log('origin/main:', execSync('git rev-parse origin/main', {cwd: dir, encoding:'utf8'}).trim());
+console.log('\ngit log --oneline -5:');
+console.log(execSync('git log --oneline -5', {cwd: dir, encoding:'utf8'}).trim());
+console.log('\nChecking source for fix:');
+const bot = fs.readFileSync(dir + '/src/bot/bot.js', 'utf8');
+console.log('newest.download():', bot.includes('newest.download()'));
+console.log('await fetch(newest.url):', bot.includes('await fetch(newest.url)'));
+console.log('Buffer.from(await response.arrayBuffer()):', bot.includes('Buffer.from(await response.arrayBuffer())'));
+console.log('oldDb:', bot.includes('const oldDb = database.db'));
+console.log('client.once clientReady:', bot.includes("client.once('clientReady'"));
+console.log('client.on ready:', bot.includes("client.on('ready'"));
+console.log('\ngit status:');
+console.log(execSync('git status --short', {cwd: dir, encoding:'utf8'}).trim());
+console.log('\nAny untracked files?');
+const status = execSync('git status', {cwd: dir, encoding:'utf8'}).trim();
+console.log(status.substring(0, 500));
