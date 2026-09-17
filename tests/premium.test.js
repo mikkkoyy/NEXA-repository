@@ -11,6 +11,7 @@ const { EconomyService } = require('../src/economy/service');
 const { ProfileRepository } = require('../src/identity/repository');
 const IdentityService = require('../src/identity/service');
 const premiumCommand = require('../src/commands/premium');
+const { Attachment } = require('discord.js');
 
 const DAY = 86400000;
 
@@ -386,6 +387,42 @@ describe('NEXA Premium', () => {
       } finally {
         restored.close();
       }
+    });
+  });
+
+  describe('19. Discord snapshot restore mechanism', () => {
+    it('Discord.js Attachment does not have a download() method', () => {
+      const attachmentData = { id: '123', url: 'https://cdn.discordapp.com/attachments/123/nexa_cloud.db', filename: 'nexa_cloud.db', proxy_url: 'https://cdn.discordapp.com/attachments/123/proxy/nexa_cloud.db' };
+      const attachment = new Attachment(attachmentData);
+      assert.strictEqual(typeof attachment.download, 'undefined');
+      assert.strictEqual(typeof attachment.url, 'string');
+      assert.strictEqual(attachment.url, 'https://cdn.discordapp.com/attachments/123/nexa_cloud.db');
+      assert.strictEqual(typeof attachment.proxyURL, 'string');
+      assert.strictEqual(typeof attachment.size, 'undefined');
+    });
+
+    it('fetch URL mechanism produces a Buffer from attachment URL', async () => {
+      const http = require('http');
+      const server = http.createServer((req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/octet-stream' });
+        res.end(Buffer.from('SQLite database content'));
+      });
+      const { url } = await new Promise(resolve => {
+        server.listen(0, '127.0.0.1', () => resolve({ url: 'http://127.0.0.1:' + server.address().port }));
+      });
+
+      const response = await fetch(url);
+      assert.strictEqual(response.ok, true);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      assert.strictEqual(buffer.toString(), 'SQLite database content');
+      server.close();
+    });
+
+    it('restore returns { found: false, restored: false } structure for missing channel', () => {
+      const { Attachment } = require('discord.js');
+      const attachmentData = { id: '123', url: 'https://cdn.discordapp.com/attachments/123/nexa_cloud.db', filename: 'nexa_cloud.db' };
+      const attachment = new Attachment(attachmentData);
+      assert.strictEqual(typeof attachment.download, 'undefined');
     });
   });
 

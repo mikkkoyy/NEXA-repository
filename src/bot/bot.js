@@ -192,11 +192,13 @@ async function doBackup() {
   }
 }
 
-async function startBackupTimer() {
+async function startBackupTimer(restored = true) {
   if (backupInterval) {
     clearInterval(backupInterval);
   }
-  await doBackup();
+  if (restored) {
+    await doBackup();
+  }
   backupInterval = setInterval(doBackup, 10 * 60 * 1000);
 }
 
@@ -204,7 +206,7 @@ async function restoreSnapshot() {
   const backupChannelId = config.backupChannelId;
   if (!backupChannelId) {
     console.log('[Database] No backup channel configured. Starting fresh database.');
-    return;
+    return { found: false, restored: false };
   }
 
   let channel;
@@ -212,12 +214,12 @@ async function restoreSnapshot() {
     channel = await client.channels.fetch(backupChannelId);
   } catch (err) {
     console.log('[Database] Backup channel not found. Starting fresh database.');
-    return;
+    return { found: false, restored: false };
   }
 
   if (!channel || channel.type !== 0) {
     console.log('[Database] Backup channel not found. Starting fresh database.');
-    return;
+    return { found: false, restored: false };
   }
 
   const attachments = await channel.messages.fetch({
@@ -238,12 +240,17 @@ async function restoreSnapshot() {
 
   if (attachments.length === 0) {
     console.log('[Database] No Discord snapshot found. Starting fresh database.');
-    return;
+    return { found: false, restored: false };
   }
 
   const newest = attachments[0];
+  const oldDb = database.db;
   try {
-    const buffer = await newest.download();
+    const response = await fetch(newest.url);
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status + ': failed to download snapshot');
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
     const better = require('better-sqlite3');
     const restoredDb = new better(buffer);
 
@@ -255,8 +262,12 @@ async function restoreSnapshot() {
     database.db.pragma('journal_mode = WAL');
 
     console.log('[Database] Snapshot restored successfully.');
+    return { found: true, restored: true };
   } catch (err) {
     console.error('[Database] Snapshot restore failed:', err.message);
+    console.error('[Database] A snapshot was found but could not be restored. NOT uploading a fresh database.');
+    try { database.db.close(); database.db = oldDb; } catch (_) { /* preserve old db on failure */ }
+    return { found: true, restored: false };
   }
 }
 
@@ -270,7 +281,7 @@ function initializeApplication() {
 
   Promise.resolve().then(async () => {
     try {
-      await restoreSnapshot();
+      let restoreResult = await restoreSnapshot();
     } catch (err) {
       console.error('[Database] Snapshot restore error:', err.message);
     }
@@ -299,7 +310,7 @@ function initializeApplication() {
     }
 
     try {
-      await startBackupTimer();
+      await startBackupTimer(restoreResult && restoreResult.restored);
     } catch (err) {
       console.error('[NEXA] Failed to start backup timer:', err.message);
     }
