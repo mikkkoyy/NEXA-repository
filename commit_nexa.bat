@@ -25,19 +25,31 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [1/5] Remote:
+echo [1/6] Remote:
 git remote -v
 echo.
 
-echo [2/5] Current branch:
-git branch --show-current
+echo [2/6] Branch:
+for /f "delims=" %%B in ('git branch --show-current') do set "BRANCH=%%B"
+echo %BRANCH%
 echo.
 
-echo [3/5] Changes:
+if /I not "%BRANCH%"=="main" (
+    echo [ERROR] Current branch is not main.
+    echo Expected: main
+    timeout /t 3 /nobreak >nul
+    exit /b 1
+)
+
+echo [3/6] Current commit:
+git log -1 --oneline
+echo.
+
+echo [4/6] Changes:
 git status --short
 echo.
 
-echo [4/5] Staging changes...
+echo [5/6] Staging changes...
 git add -A
 
 if errorlevel 1 (
@@ -51,6 +63,10 @@ git diff --cached --quiet
 if not errorlevel 1 (
     echo.
     echo [INFO] Nothing to commit.
+    echo.
+    echo Current GitHub target:
+    git remote get-url origin
+    echo.
     timeout /t 2 /nobreak >nul
     exit /b 0
 )
@@ -72,8 +88,10 @@ if errorlevel 1 (
 )
 
 echo.
-echo [5/5] Pushing to GitHub...
-git push
+echo [6/6] Pushing to GitHub...
+echo.
+
+git push origin main
 
 if errorlevel 1 (
     echo.
@@ -88,10 +106,37 @@ echo ==========================================
 echo          GITHUB PUSH SUCCESSFUL
 echo ==========================================
 echo.
+
+echo Latest commit:
 git log -1 --oneline
+
 echo.
+echo GitHub branch:
+git branch --show-current
+
+echo.
+echo Remote:
+git remote get-url origin
+
+echo.
+echo ==========================================
+echo   WISPBYYTE AUTO-UPDATE REQUIREMENT
+echo ==========================================
+echo.
+echo Wispbyte must have:
+echo.
+echo AUTO_UPDATE=1
+echo JS_FILE=src/index.js
+echo.
+echo Wispbyte must also be deployed from the
+echo Git repository so that .git exists.
+echo.
+echo This BAT only pushes to GitHub.
+echo It does NOT update Wispbyte directly.
+echo.
+
 echo Closing automatically...
-timeout /t 2 /nobreak >nul
+timeout /t 3 /nobreak >nul
 
 endlocal
 exit /b 0
